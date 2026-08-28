@@ -115,3 +115,21 @@ Use these commands if troubleshooting is needed in the future:
    - **Waybar:** Added `"adapter": "ADP1"` to `~/.local/share/waybar/modules/battery.jsonc` so the icon updates instantly on physical cable events.
    - **Script:** Updated the `dbus-monitor` listener to monitor `line_power` events. Added an override in `get_battery_info()` to read `/sys/class/power_supply/ADP1/online` and bypass the 10-second SMC lag instantly.
 3. **Smart Hysteresis Noise Filter:** Added a 60-second, 2%-threshold debouncing filter to `batterynotify.sh` to completely silence sensor jitter. Crucially, added a tracker for the physical AC adapter pin state (`last_adp_online`) to **bypass** the filter entirely whenever the user physically touches the cable.
+
+---
+
+## 4. Keyboard Backlight Fixes
+
+### Symptoms
+1. **Unresponsive Keys:** The keyboard backlight keys (`F5` and `F6`) on the MacBook Pro 2015 did not adjust the keyboard illumination. 
+
+### Root Causes
+- **Missing Keybindings:** While the `applesmc` driver correctly exposes the keyboard backlight to the kernel via `/sys/class/leds/smc::kbd_backlight/`, there were no specific `bind` mappings inside the Hyprland configuration to capture `XF86KbdBrightnessUp` and `XF86KbdBrightnessDown` and dispatch a brightness change command.
+
+### Resolutions
+1. **Added Keybindings:** Verified that `brightnessctl` could control `smc::kbd_backlight` without `sudo` privileges. Added repeating keybindings (`bindel`) to `~/.config/hypr/userprefs.conf` for the keyboard backlight keys:
+   ```conf
+   # Keyboard Backlight
+   bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
+   bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
+   ```
