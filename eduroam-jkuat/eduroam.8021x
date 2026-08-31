@@ -1,0 +1,15 @@
+[Security]
+EAP-Method=PEAP
+# The outer identity is often just anonymous or your email
+EAP-Identity=anonymous@jkuat.ac.ke
+EAP-PEAP-Phase2-Method=MSCHAPV2
+# Replace with your actual student email/ID
+EAP-PEAP-Phase2-Identity=your_student_id@jkuat.ac.ke
+# Replace with your actual password
+EAP-PEAP-Phase2-Password=your_password
+
+# Optional: If you download the JKUAT CA certificate, uncomment the next line and provide the correct path.
+# EAP-PEAP-CACert=/path/to/JKUAT_CA.pem
+
+[Settings]
+AutoConnect=true
