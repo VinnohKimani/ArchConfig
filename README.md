@@ -8,11 +8,9 @@ This document tracks the resolution of two critical post-installation issues on 
 ## Root Cause Analysis
 
 ### 1. Wi-Fi Connectivity
-- **Incorrect Driver Assumption:** The proprietary `broadcom-wl-dkms` package does **not** support the BCM43602 chip. Attempting to use the `wl` module resulted in a complete crash during initialization (`ERROR @wl_cfg80211_detach`).
-- **WPA Supplicant & MAC Randomization Bugs:** While the correct open-source driver (`brcmfmac`) was originally loaded, it failed to complete security handshakes due to two compounding issues:
-  1. `NetworkManager` enables MAC address randomization by default during scanning, which breaks association on older Apple Broadcom chips.
-  2. The default `wpa_supplicant` backend struggles with WPA3/SAE (and often WPA2 with Protected Management Frames) on the BCM43602.
-- **Resolution:** Blacklist `wl`, restore `brcmfmac`, and switch NetworkManager's Wi-Fi backend to Intel's `iwd` while explicitly disabling MAC randomization.q
+- **Hardware Limitations & Firmware Bugs:** The built-in Broadcom BCM43602 uses the `brcmfmac` open-source driver, but firmware bugs cause issues with roaming, offloading, and WPA3 security handshakes, resulting in association timeouts.
+- **NetworkManager MAC Randomization:** `NetworkManager` enables MAC address randomization by default during scanning and connection, which further breaks association on this older Apple Broadcom chip.
+- **Resolution:** Configure the `brcmfmac` module to disable problematic hardware features (`feature_disable=0x82000`) and explicitly disable all MAC randomization in NetworkManager.
 
 ### 2. Hyprland Config Errors
 - **Deprecated Syntax:** Hyprland `0.41.0+` moved the `workspace_swipe` configuration. The old `gestures:workspace_swipe` variables were triggering parsing errors.
@@ -22,26 +20,26 @@ This document tracks the resolution of two critical post-installation issues on 
 
 ## Exact Step-by-Step Resolution Guide
 
-### Step 1: Fix Kernel Module Blacklists
-Ensure the crashed proprietary driver is blacklisted and the correct open-source driver is prioritized.
+### Step 1: Configure `brcmfmac` Kernel Module
+Pass the `feature_disable=0x82000` flag to the `brcmfmac` driver to disable problematic offloading and roaming features that break connectivity.
 
 ```bash
-sudo tee /etc/modprobe.d/blacklist-broadcom.conf > /dev/null << 'EOF'
-blacklist b43
-blacklist b43legacy
-blacklist bcma
-blacklist wl
+sudo tee /etc/modprobe.d/brcmfmac.conf > /dev/null << 'EOF'
+options brcmfmac feature_disable=0x82000
 EOF
 ```
 
-### Step 2: Switch NetworkManager to `iwd`
-Configure NetworkManager to use `iwd` instead of `wpa_supplicant`, and disable broken MAC randomization.
+### Step 2: Disable NetworkManager MAC Randomization
+Explicitly disable MAC randomization for both scanning and connection profiles to allow association with access points.
 
 ```bash
-sudo tee /etc/NetworkManager/conf.d/wifi_backend.conf > /dev/null << 'EOF'
+sudo tee /etc/NetworkManager/conf.d/mac-rand.conf > /dev/null << 'EOF'
 [device]
-wifi.backend=iwd
 wifi.scan-rand-mac-address=no
+
+[connection]
+wifi.cloned-mac-address=preserve
+wifi.mac-address-randomization=1
 EOF
 ```
 
@@ -56,12 +54,11 @@ EOF
 ```
 
 ### Step 4: Apply Changes and Reload Services
-Reload the networking stack to apply the new backend and driver:
+Reload the kernel module and the networking stack to apply the changes:
 
 ```bash
-sudo rmmod wl
+sudo modprobe -r brcmfmac
 sudo modprobe brcmfmac
-sudo systemctl enable --now iwd
 sudo systemctl restart NetworkManager
 ```
 
@@ -71,11 +68,11 @@ sudo systemctl restart NetworkManager
 
 To guarantee that the network connection survives a system reboot, the following checks have been verified:
 
-- [x] **Services Enabled:** Both `NetworkManager` and `iwd` are enabled to start on boot.
-  - *Verify with:* `systemctl is-enabled NetworkManager iwd` (Should output `enabled` for both).
-- [x] **Kernel Module Persistence:** The blacklisting of the bad `wl` module is permanently saved in `/etc/modprobe.d/blacklist-broadcom.conf`.
-  - *Verify with:* `cat /etc/modprobe.d/blacklist-broadcom.conf`
-- [x] **NetworkManager Configs:** The backend override (`wifi_backend.conf`) is permanently stored in `/etc/NetworkManager/conf.d/`.
+- [x] **Services Enabled:** `NetworkManager` is enabled to start on boot.
+  - *Verify with:* `systemctl is-enabled NetworkManager`
+- [x] **Kernel Module Configuration:** The `brcmfmac` feature disable flag is permanently saved in `/etc/modprobe.d/brcmfmac.conf`.
+  - *Verify with:* `cat /etc/modprobe.d/brcmfmac.conf`
+- [x] **NetworkManager Configs:** MAC randomization and powersave configs are permanently stored in `/etc/NetworkManager/conf.d/`.
 
 ---
 
