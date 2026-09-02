@@ -133,3 +133,124 @@ Use these commands if troubleshooting is needed in the future:
    bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
    bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
    ```
+
+---
+
+## 5. Trackpad Fixes (Tap-and-Drag)
+
+### Symptoms
+Accidental text highlighting and dragging of browser tabs when gently tapping the trackpad on the MacBook Pro.
+
+### Root Cause
+Hyprland's `tap-and-drag` feature is overly sensitive on MacBook trackpads, interpreting a slight finger roll during a tap as a click-and-hold drag event.
+
+### Resolution
+Disabled `tap-and-drag` in the Hyde dotfiles configuration.
+- **File:** `~/.config/hypr/userprefs.conf`
+- **Change:** Set `tap-and-drag = false` in the `input { touchpad { ... } }` block.
+- **Command:** `sed -i 's/tap-and-drag = true/tap-and-drag = false/' ~/.config/hypr/userprefs.conf`
+
+---
+
+## 6. Battery Degradation & Sudden Shutdowns
+
+### Symptoms
+The MacBook completely shuts down without warning, despite the battery indicator showing 20-40% remaining. The system also fails to send a low battery notification before dying.
+
+### Root Cause
+Severe hardware degradation of the lithium-ion battery. Diagnostic (`upower -i /org/freedesktop/UPower/devices/battery_BAT0`) revealed:
+- **Charge Cycles:** 1,863 (Apple recommends replacement at 1,000).
+- **Battery Health:** 33.0% of original design capacity.
+When heavily degraded batteries are put under load, they suffer from extreme "voltage sag". The voltage drops instantly below the laptop's minimum operating threshold, causing a hard power cut before the OS has time to trigger a 10% or 5% warning notification.
+
+### Resolution
+This is a **hardware limitation**. Software configuration cannot prevent voltage sag on a worn-out battery. The MacBook must remain plugged in or the battery must be physically replaced.
+
+---
+
+## 7. System Stability (OOM Crashes & Swap Space)
+
+### Symptoms
+Heavy applications (like VS Code / Antigravity IDE) terminate unexpectedly during heavy workloads (e.g., running language servers). System logs (`journalctl`) show an `Out of memory: Killed process` (OOM kill) event.
+
+### Root Cause
+The 2015 MacBook Pro is hard-limited to 8GB of soldered RAM. By default, Arch Linux relies heavily on physical RAM and `zram` (compressed memory). When both fill up, Linux lacks a fallback SSD swap file (which macOS sets up dynamically by default), resulting in the kernel forcefully killing the heaviest application to save the system from freezing.
+
+### Resolution
+Created an 8GB SSD Swap File to act as emergency fallback memory, mimicking macOS's dynamic pager.
+
+**Step-by-Step Commands (for ext4 filesystems):**
+1. `sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress`
+2. `sudo chmod 600 /swapfile`
+3. `sudo mkswap /swapfile`
+4. `sudo swapon /swapfile`
+5. `echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab`
+
+---
+
+## 8. IDE Terminal Font Fix (Broken Icons)
+
+### Symptoms
+The integrated terminal inside VS Code/Antigravity shows broken square boxes (`[X]`) instead of icons (like folders, Git branches, or language logos), while the standalone terminal emulator displays them correctly.
+
+### Root Cause
+The ZSH shell prompt (e.g., Powerlevel10k/Starship) relies on "Nerd Fonts" to render custom icons. The IDE's default integrated terminal font does not support these glyphs.
+
+### Resolution
+Update the IDE settings to use an installed Nerd Font.
+- **Settings Path:** `Terminal > Integrated: Font Family`
+- **Value:** `'JetBrainsMono Nerd Font'` (or another installed Nerd Font found via `fc-list | grep -i "nerd"`).
+
+---
+
+## 9. Arch Linux Package Management (pacman vs yay)
+
+### Overview
+- **`pacman`**: The official Arch Linux package manager. Used to install pre-compiled, officially supported software.
+- **`yay` (Yet Another Yogurt)**: An AUR (Arch User Repository) helper. It acts as a wrapper around `pacman` but adds the superpower to download, compile, and install community-maintained software (like `antigravity-ide` or `brave-bin`).
+- **Best Practice:** Use `yay` for everyday usage, as it seamlessly handles both official and AUR packages (`yay -Syu` updates everything).
+
+### Troubleshooting AUR Builds
+If a large AUR package (like Brave or an IDE) finishes building but fails to install with a `sudo: timed out reading password` error, it means the compilation took longer than the default `sudo` timeout. 
+- **Fix:** Simply rerun the install command (`yay -Syu`). The packages are already cached locally (`~/.cache/yay/`), so it will skip compilation and instantly prompt for the password to install.
+
+---
+
+## 10. Installed Applications & Development Environment
+
+To make future installations seamless, here is a categorized list of the explicit packages installed on this system.
+
+### 💻 IDEs & Development Tools
+- `antigravity-ide` (Primary IDE)
+- `visual-studio-code-bin` (Fallback IDE)
+- `neovim` / `vim` (Terminal editors)
+- `docker` / `docker-compose` (Containerization)
+- `git` / `github-cli` (Version Control)
+- `ngrok` (Tunneling)
+
+### ⚙️ Programming Languages & Runtimes
+- **JavaScript/TypeScript:** `nodejs`, `npm`, `bun`
+- **Python:** `pyenv`, `python-pipenv`, `python-pipx`, `uv`
+- **Rust/C++:** `rust`, `base-devel`, `cmake`, `ninja`
+
+### 🌐 Web Browsers
+- `brave-bin`
+- `firefox`
+
+### 🎨 Desktop Environment (Hyprland / Hyde)
+- **Core:** `hyprland`, `hyprlock`, `hypridle`, `hyprsunset`, `hyprpicker`, `hyprpolkitagent`
+- **UI Components:** `waybar`, `rofi`, `wlogout`, `dunst`, `kitty` (Terminal)
+- **Display Manager:** `sddm`
+
+### 🛠️ CLI Utilities & System Tools
+- **Shell:** `zsh`, `starship` (Prompt)
+- **System Monitors:** `btop`, `htop`, `fastfetch`
+- **File & Search:** `fzf`, `bat`, `tree`, `jq`, `unzip`, `wget`
+- **Performance:** `zram-generator` (RAM compression/swap)
+
+### 🚀 One-Liner Reinstall Command
+For your next Arch installation, after installing `yay`, you can run this command to restore your entire development environment and application suite at once:
+
+```bash
+yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja brave-bin firefox hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent waybar rofi wlogout dunst kitty sddm zsh starship btop fastfetch fzf bat tree jq zram-generator
+```
