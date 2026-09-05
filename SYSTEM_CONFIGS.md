@@ -16,21 +16,23 @@ A red banner displaying `gestures:workspace_swipe does not exist` appeared on st
 ## 2. Battery Notification System Fixes
 
 ### Symptoms
-1. **Notification Spam (Jitter):** A physically degraded battery caused rapid oscillation between "Charging" and "Discharging" states near full charge, spamming notifications.
+1. **Notification Spam (Jitter & Unwanted Alerts):** A physically degraded battery caused rapid oscillation between states, and the default script spammed unwanted notifications asking to charge at 60% and 30%.
 2. **Incorrect Percentage:** The battery notification showed ~22% when plugged/unplugged, while Waybar and the desktop environment correctly showed ~72%.
 3. **10-Second Status Lag:** When physically plugging or unplugging the MagSafe charger, both Waybar and the notifications took ~10 seconds to respond.
 
 ### Root Causes
+- **Hyde Defaults:** The default Hyde `batterynotify.sh` was overly aggressive and complex, causing unwanted alerts at hardcoded intervals.
 - **Apple SMC Sysfs Capacity Bug:** On MacBooks, the kernel (`/sys/class/power_supply/BAT0/capacity`) calculates the percentage relative to the *factory original design capacity*, rather than the *current degraded usable capacity*. This resulted in an artificially low reading in the notification script.
 - **Apple SMC Status Lag:** The internal battery controller takes 10-15 seconds to fully transition states and report it to `sysfs BAT0`. 
-- **Waybar/DBus Polling:** Waybar and the `batterynotify.sh` script were strictly watching the lagging battery state instead of the instantaneously updating AC adapter pin state (`ADP1`).
 
 ### Resolutions
-1. **Accurate Percentage (upower):** Modified `~/.local/lib/hyde/batterynotify.sh`'s `get_battery_info()` function to fetch the percentage from `upower` instead of the raw `sysfs` file, ensuring parity with the desktop environment.
-2. **Instant Status Updates (Waybar & Script):**
-   - **Waybar:** Added `"adapter": "ADP1"` to `~/.local/share/waybar/modules/battery.jsonc` so the icon updates instantly on physical cable events.
-   - **Script:** Updated the `dbus-monitor` listener to monitor `line_power` events. Added an override in `get_battery_info()` to read `/sys/class/power_supply/ADP1/online` and bypass the 10-second SMC lag instantly.
-3. **Smart Hysteresis Noise Filter:** Added a 60-second, 2%-threshold debouncing filter to `batterynotify.sh` to completely silence sensor jitter. Crucially, added a tracker for the physical AC adapter pin state (`last_adp_online`) to **bypass** the filter entirely whenever the user physically touches the cable.
+1. **Disabled Default Hyde Script:** Added `exit 0` to `~/.local/lib/hyde/batterynotify.sh` to completely silence the noisy defaults and stop the 30%/60% spam.
+2. **Custom Battery Daemon:** Replaced it with a lightweight custom script at `~/.local/bin/battery-notify.sh` driven by a 1-minute systemd timer (`~/.config/systemd/user/battery-notify.timer`).
+3. **New Notification Rules:** 
+   - Regular status update every 10 minutes.
+   - Plug-in warning specifically at exactly 20%.
+   - Emergency system suspend at 15% to mitigate hard power-offs due to voltage sag on the degraded battery.
+4. **Waybar Instant Status:** Added `"adapter": "ADP1"` to `~/.local/share/waybar/modules/battery.jsonc` so the icon updates instantly on physical cable events, bypassing the 10-second SMC lag.
 
 ---
 
@@ -80,7 +82,8 @@ Severe hardware degradation of the lithium-ion battery. Diagnostic (`upower -i /
 When heavily degraded batteries are put under load, they suffer from extreme "voltage sag". The voltage drops instantly below the laptop's minimum operating threshold, causing a hard power cut before the OS has time to trigger a 10% or 5% warning notification.
 
 ### Resolution
-This is a **hardware limitation**. Software configuration cannot prevent voltage sag on a worn-out battery. The MacBook must remain plugged in or the battery must be physically replaced.
+- **Hardware Limitation:** Ultimately, software configuration cannot completely prevent voltage sag on a worn-out battery. The battery must be physically replaced.
+- **Software Mitigation:** Configured the custom `~/.local/bin/battery-notify.sh` daemon to aggressively issue a `systemctl suspend` when the battery hits 15%. This creates an artificial safety buffer to safely put the system to sleep *before* the hardware power-cuts at ~10-12%.
 
 ---
 
