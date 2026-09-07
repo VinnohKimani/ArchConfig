@@ -170,3 +170,22 @@ For your next Arch installation, after installing `yay`, you can run this comman
 ```bash
 yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja brave-bin firefox hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent waybar rofi wlogout dunst kitty sddm zsh starship btop fastfetch fzf bat tree jq zram-generator
 ```
+
+---
+
+## 10. Desktop UI & Notifications (Waybar, Dunst, Screenshots)
+
+### Waybar
+- **Transparent Background:** The default opaque island background for Waybar was made fully transparent by setting `@define-color bar-bg rgba(0, 0, 0, 0.0);` in `~/.config/waybar/theme.css`.
+- **Battery Accuracy:** Waybar's default polling could lag. Updated `~/.local/share/waybar/modules/battery.jsonc` to explicitly define `"bat": "BAT0"` and `"interval": 10` for reliable, snappy percentage updates.
+
+### Dunst Notifications
+- **Responsive Width & Padding:** By default, Dunst notifications were squishing text on long lines. Updated `~/.config/dunst/dunst.conf` to use a dynamic width (`width = (0, 300)` or `width = 300`) and shrunk icon sizes (`min_icon_size = 32`, `max_icon_size = 48`) to prioritize text readability. *(Note: Changes must be compiled using `hyde-shell wallbash dunst`)*.
+
+### Screenshot Annotations (Swappy)
+- **Direct to Clipboard:** By default, HyDE opens a screenshot annotation tool (Satty/Swappy) after capturing. This was disabled to allow instant "snip to clipboard" functionality.
+- **Fix:** Added `[screenshot] annotation_enabled = false` to `~/.config/hyde/config.toml`.
+
+### Hyprland Keybinding Conflicts
+- **Super+Q & Super+W:** Custom keybindings in `~/.config/hypr/userprefs.conf` were overriding the default `keybindings.conf` behavior by mapping both to `killactive`. 
+- **Fix:** Removed the custom overrides, restoring `Super+Q` to close the focused window, and `Super+W` to toggle floating mode.
