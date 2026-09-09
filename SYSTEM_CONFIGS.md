@@ -26,11 +26,9 @@ A red banner displaying `gestures:workspace_swipe does not exist` appeared on st
 - **Waybar/DBus Polling:** Waybar and the `batterynotify.sh` script were strictly watching the lagging battery state instead of the instantaneously updating AC adapter pin state (`ADP1`).
 
 ### Resolutions
-1. **Accurate Percentage (upower):** Modified `~/.local/lib/hyde/batterynotify.sh`'s `get_battery_info()` function to fetch the percentage from `upower` instead of the raw `sysfs` file, ensuring parity with the desktop environment.
-2. **Instant Status Updates (Waybar & Script):**
-   - **Waybar:** Added `"adapter": "ADP1"` to `~/.local/share/waybar/modules/battery.jsonc` so the icon updates instantly on physical cable events.
-   - **Script:** Updated the `dbus-monitor` listener to monitor `line_power` events. Added an override in `get_battery_info()` to read `/sys/class/power_supply/ADP1/online` and bypass the 10-second SMC lag instantly.
-3. **Smart Hysteresis Noise Filter:** Added a 60-second, 2%-threshold debouncing filter to `batterynotify.sh` to completely silence sensor jitter. Crucially, added a tracker for the physical AC adapter pin state (`last_adp_online`) to **bypass** the filter entirely whenever the user physically touches the cable.
+1. **Instant Charger Detection (udevadm):** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. Created a custom active daemon (`~/.local/bin/battery-monitor.sh`) that uses `udevadm monitor -s power_supply` to instantly detect charger plug/unplug events and immediately trigger the notification script. This daemon is launched on boot via `~/.config/hypr/userprefs.conf`.
+2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications.
+3. **Polling Updates & Clean UI:** The script runs regular interval checks every 10 minutes for discharging updates. Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
 
 ---
 
@@ -49,6 +47,7 @@ A red banner displaying `gestures:workspace_swipe does not exist` appeared on st
    bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
    bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
    ```
+2. **Keyboard Backlight Sleep Timeout:** Hooked into the DPMS listener in `~/.config/hypr/hypridle.conf` to automatically save and turn off the keyboard backlight when the screen goes to sleep (300 seconds), and seamlessly restore the original brightness upon wake.
 
 ---
 
