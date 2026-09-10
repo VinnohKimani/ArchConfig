@@ -233,3 +233,19 @@ Search GitHub directly for repositories tagged with `hyprland-theme` or `hyprlan
 
 ### ⚠️ Important Note on Installing 3rd Party Themes
 Because you are using **HyDE**, a highly integrated script-based environment, manually copy-pasting raw `hyprland.conf` or `waybar` files from Reddit or GitHub might break your HyDE shortcuts (`hyde-shell`). When adopting third-party themes, it is best to only copy the **CSS styling** (`style.css`, `colors.conf`) and apply them to your existing HyDE user preference files (`~/.config/hypr/userprefs.conf` and `~/.config/waybar/user-style.css`) rather than replacing the core configuration files.
+
+---
+
+## 13. Waybar Tray Popups Overlapping Bar
+
+### Symptoms
+When clicking a tray icon (such as the Wi-Fi icon for `nm-applet`), the GTK popup menu drops down *over* the Waybar itself (overlapping the icons), instead of dropping down cleanly below the bar.
+
+### Root Cause
+This is caused by missing positioning metadata in the Waybar layout configuration (`config.jsonc`). Without explicitly defining `"position": "top"`, Waybar assumes the top position visually, but GTK popups (like tray menus) fail to identify the correct screen edge to anchor to. This causes the popup coordinates to be calculated incorrectly, spawning on top of the bar. Furthermore, the missing `"position": "top"` prevents Waybar from applying the `window#waybar.top` CSS styles, leading to missing padding and margins that the theme expects.
+
+### Resolution
+- **Fix:** Explicitly define the position parameter in the layout file.
+- **File:** `~/.config/waybar/config.jsonc` (and the associated source layout in `~/.local/share/waybar/layouts/`).
+- **Change:** Add `"position": "top",` directly under the `"layer": "top",` property.
+- **Apply:** Restart Waybar (e.g., via `killall waybar && waybar &` or using the `hyde-shell waybar` utility).
