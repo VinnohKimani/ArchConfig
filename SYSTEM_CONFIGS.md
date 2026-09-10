@@ -188,3 +188,48 @@ yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git g
 ### Hyprland Keybinding Conflicts
 - **Super+Q & Super+W:** Custom keybindings in `~/.config/hypr/userprefs.conf` were overriding the default `keybindings.conf` behavior by mapping both to `killactive`. 
 - **Fix:** Removed the custom overrides, restoring `Super+Q` to close the focused window, and `Super+W` to toggle floating mode.
+
+---
+
+## 11. Waybar Missing / Invisible Bug
+
+### Symptoms
+Waybar process is running and Hyprland correctly maps it (occupying space on screen), but the bar is completely invisible to the user.
+
+### Root Cause
+Custom CSS in `~/.config/waybar/user-style.css` contained a "TRANSPARENT TEXT-ONLY" snippet. This overrode the default HyDE styles, forcefully setting all backgrounds (`#waybar`, `.module`, etc.) to `transparent` with no borders. Because the user was using a dark layout (`macos`) against dark background windows, the white text blended in, or elements were empty, making the bar seem entirely vanished.
+
+### Resolution
+- Emptied `~/.config/waybar/user-style.css` (or removed the specific transparent background overrides) to restore the default HyDE theme rendering. 
+- Ensure `macos.jsonc` (or the active layout) maintains its proper module definitions so Waybar has content to render.
+- Use `hyde-shell waybar --set <layout_name>` to properly apply a layout and restart Waybar.
+
+---
+
+## 12. Recommendations for Hyprland Themes
+
+If you are looking to expand beyond the default themes provided by HyDE (Hyprland Desktop Environment), here are the best places and tools to find and install more themes:
+
+### 1. The Official HyDE Theme Repository
+Since you are using the HyDE ecosystem, the most stable themes are those officially supported. 
+- **Repository:** [prasanthrangan/hyprdots](https://github.com/prasanthrangan/hyprdots)
+- **Usage:** You can import community themes via `hyde-shell app -T -- hydectl theme import`.
+
+### 2. Dotfyle (Discover Dotfiles)
+[Dotfyle.com](https://dotfyle.com/) is a search engine dedicated to Neovim plugins, window managers, and dotfiles. 
+- Navigate to the **Hyprland** section.
+- You can filter by themes, colorschemes (Catppuccin, Nord, Gruvbox), and popularity.
+
+### 3. r/unixporn (Reddit)
+The ultimate community for desktop ricing.
+- **Subreddit:** [reddit.com/r/unixporn](https://www.reddit.com/r/unixporn/)
+- **Usage:** Search for `Hyprland` in the search bar. Users post screenshots of their setups, and it is a strict rule that they must provide a "dotfiles" link (usually GitHub) in the comments. You can clone their configurations and cherry-pick Waybar/Hyprland styles.
+
+### 4. GitHub Topics
+Search GitHub directly for repositories tagged with `hyprland-theme` or `hyprland-dotfiles`.
+- **Links:** 
+  - [github.com/topics/hyprland-dotfiles](https://github.com/topics/hyprland-dotfiles)
+  - [github.com/topics/hyprland-theme](https://github.com/topics/hyprland-theme)
+
+### ⚠️ Important Note on Installing 3rd Party Themes
+Because you are using **HyDE**, a highly integrated script-based environment, manually copy-pasting raw `hyprland.conf` or `waybar` files from Reddit or GitHub might break your HyDE shortcuts (`hyde-shell`). When adopting third-party themes, it is best to only copy the **CSS styling** (`style.css`, `colors.conf`) and apply them to your existing HyDE user preference files (`~/.config/hypr/userprefs.conf` and `~/.config/waybar/user-style.css`) rather than replacing the core configuration files.
