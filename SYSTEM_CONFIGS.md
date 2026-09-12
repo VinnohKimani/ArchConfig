@@ -249,3 +249,57 @@ This is caused by missing positioning metadata in the Waybar layout configuratio
 - **File:** `~/.config/waybar/config.jsonc` (and the associated source layout in `~/.local/share/waybar/layouts/`).
 - **Change:** Add `"position": "top",` directly under the `"layer": "top",` property.
 - **Apply:** Restart Waybar (e.g., via `killall waybar && waybar &` or using the `hyde-shell waybar` utility).
+
+---
+
+## 14. Hypridle Sleep & Lock Timings
+
+### Symptoms
+The system was configured to lock the session *before* the screen turned off, leading to a frustrating experience where waking the screen immediately presented a lock screen even if it hadn't slept yet. Additionally, the system appeared to "stay up" during charging, although idle behavior shouldn't inherently differ.
+
+### Root Cause
+In `~/.config/hypr/hypridle.conf`, the lock timeout (`120s`) occurred before the DPMS screen off timeout (`300s`). 
+
+### Resolution
+Reordered the `hypridle` timeouts logically so that the system sleeps first, and locks *after* it has been asleep for a period of time:
+- **Dim:** 120s
+- **DPMS Off (Sleep):** 300s
+- **Lock Session:** 600s
+- **Suspend:** 1200s
+
+*(Note: To ensure idle timeouts work while charging, make sure Waybar's idle inhibitor is turned off).*
+
+---
+
+## 15. Dunst Notification Icons Overridden by Wallbash
+
+### Symptoms
+Notifications triggered by scripts (e.g., `battery-notify.sh` using `notify-send -i battery-full-symbolic`) were not displaying their specified icons. Instead, they constantly showed the default `hyprdots.svg` logo.
+
+### Root Cause
+The HyDE Wallbash script templates globally forced an `icon = ...` override in the Dunst urgency settings (`[urgency_low]`, `[urgency_normal]`, etc.). This caused Dunst to ignore the application-provided icon and forcefully replace it.
+
+### Resolution
+- **Files Modified:** 
+  - `~/.local/share/wallbash/always/dunst.dcol`
+  - `~/.local/share/wallbash/scripts/dunst.sh`
+- **Change:** Replaced the `icon = ` directives with `default_icon = `. This tells Dunst to use `hyprdots.svg` only as a fallback, preserving native application and battery icons.
+- **Apply:** Ran `hyde-shell wallbash dunst` to regenerate the configuration.
+
+---
+
+## 16. Zoom Screen Sharing on Wayland (Hyprland)
+
+### Symptoms
+Screen sharing in Zoom struggles or results in black screens. 
+
+### Root Cause
+Wayland's security model prevents direct screen scraping. Applications must request screen streams through `xdg-desktop-portal`. By default, Zoom uses X11 capturing (via XWayland) which fails under Hyprland.
+
+### Resolution
+1. **Official Zoom Linux Client:** 
+   Edit `~/.config/zoomus.conf` and add `enableWaylandShare=true` under the `[General]` section. Ensure `xdg-desktop-portal-hyprland` is installed.
+2. **Web Browser (Brave/Chrome):**
+   Ensure the browser runs natively in Wayland. Go to `brave://flags` and set:
+   - **Preferred Ozone platform:** `Wayland` (or `Auto`)
+   - **WebRTC PipeWire support:** `Enabled`
