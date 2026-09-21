@@ -109,12 +109,12 @@ Created an 8GB SSD Swap File to act as emergency fallback memory, mimicking macO
 The integrated terminal inside VS Code/Antigravity shows broken square boxes (`[X]`) instead of icons (like folders, Git branches, or language logos), while the standalone terminal emulator displays them correctly.
 
 ### Root Cause
-The ZSH shell prompt (e.g., Powerlevel10k/Starship) relies on "Nerd Fonts" to render custom icons. The IDE's default integrated terminal font does not support these glyphs.
+The ZSH shell prompt (e.g., Powerlevel10k/Starship) relies on "Nerd Fonts" to render custom icons. In this case, the `settings.json` configuration contained extra single quotes around the font name (e.g., `"'CaskaydiaCove Nerd Font'"`). The IDE could not parse the font family name and fell back to the default `monospace` font, which lacks the required glyphs.
 
 ### Resolution
-Update the IDE settings to use an installed Nerd Font.
-- **Settings Path:** `Terminal > Integrated: Font Family`
-- **Value:** `'JetBrainsMono Nerd Font'` (or another installed Nerd Font found via `fc-list | grep -i "nerd"`).
+Update the IDE settings in both VS Code and Antigravity IDE to explicitly use the installed Nerd Font without any extra quotes.
+- **Files Modified:** `~/.config/Code/User/settings.json` and `~/.config/Antigravity IDE/User/settings.json`
+- **Change:** `"terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font"`
 
 ---
 
@@ -303,3 +303,33 @@ Wayland's security model prevents direct screen scraping. Applications must requ
    Ensure the browser runs natively in Wayland. Go to `brave://flags` and set:
    - **Preferred Ozone platform:** `Wayland` (or `Auto`)
    - **WebRTC PipeWire support:** `Enabled`
+
+---
+
+## 17. ZSH Starship Prompt Missing in IDE Terminals
+
+### Symptoms
+The terminal in VS Code and Antigravity IDE displayed a basic Starship prompt (e.g., `^ ~ >`) instead of the fully customized HyDE Starship layout.
+
+### Root Cause
+IDE integrated terminals launch as "interactive non-login" shells by default. This causes ZSH to skip sourcing `/etc/profile` and potentially other global environment setups, meaning the `$ZDOTDIR` variable might not be inherited. As a result, the terminal fell back to reading the default `~/.zshrc` instead of HyDE's `~/.config/zsh/.zshrc`. The default `~/.zshrc` initialized Starship but lacked the `STARSHIP_CONFIG` environment variable pointer to HyDE's custom `starship.toml` layout, causing it to fall back to the built-in default layout.
+
+### Resolution
+Added an explicit export path to the base `~/.zshrc` file to ensure any shell invocation correctly finds the Starship config.
+- **File Modified:** `~/.zshrc`
+- **Change:** Added `export STARSHIP_CONFIG=$HOME/.config/starship/starship.toml` immediately before the `eval "$(starship init zsh)"` line.
+
+---
+
+## 18. Screenshot "Error" Notification on Cancellation
+
+### Symptoms
+When a user pressed `Escape` to cancel a region selection during a screenshot, the system sent a misleading notification: "Screenshot Error: Failed to take screenshot".
+
+### Root Cause
+The `take_screenshot` function inside the `screenshot.sh` script did not differentiate between a genuine failure of the `grimblast` capturing tool and a user-initiated cancellation.
+
+### Resolution
+Updated the fallback condition in the script to display a more accurate cancellation message.
+- **File Modified:** `~/.local/lib/hyde/screenshot.sh`
+- **Change:** Changed the `send_notifs` arguments from `"Screenshot Error" "Failed to take screenshot"` to `"Screenshot Cancelled" "Screenshot action was cancelled"`.
