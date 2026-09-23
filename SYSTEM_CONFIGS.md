@@ -1,144 +1,9 @@
 # MacBook Pro 2015 - System Tweaks & Fixes
 
-## 1. Hyprland Config Errors
 
-### Symptoms
-A red banner displaying `gestures:workspace_swipe does not exist` appeared on startup due to deprecated configuration syntax in newer Hyprland releases.
+# 📦 Installation & Environment Setup
 
-### Root Cause
-- **Deprecated Syntax:** Hyprland `0.41.0+` moved the `workspace_swipe` configuration. The old `gestures:workspace_swipe` variables were triggering parsing errors.
-
-### Resolution
-- **Resolution:** Remove the deprecated variables from `~/.config/hypr/userprefs.conf`. (These were cleared out, and `hyprctl reload` was issued to flush the error banner).
-
----
-
-## 2. Battery Notification System Fixes
-
-### Symptoms
-1. **Notification Spam (Jitter):** A physically degraded battery caused rapid oscillation between "Charging" and "Discharging" states near full charge, spamming notifications.
-2. **Incorrect Percentage:** The battery notification showed ~22% when plugged/unplugged, while Waybar and the desktop environment correctly showed ~72%.
-3. **10-Second Status Lag:** When physically plugging or unplugging the MagSafe charger, both Waybar and the notifications took ~10 seconds to respond.
-
-### Root Causes
-- **Apple SMC Sysfs Capacity Bug:** On MacBooks, the kernel (`/sys/class/power_supply/BAT0/capacity`) calculates the percentage relative to the *factory original design capacity*, rather than the *current degraded usable capacity*. This resulted in an artificially low reading in the notification script.
-- **Apple SMC Status Lag:** The internal battery controller takes 10-15 seconds to fully transition states and report it to `sysfs BAT0`. 
-- **Waybar/DBus Polling:** Waybar and the `batterynotify.sh` script were strictly watching the lagging battery state instead of the instantaneously updating AC adapter pin state (`ADP1`).
-
-### Resolutions
-1. **Instant Charger Detection (udevadm):** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. Created a custom active daemon (`~/.local/bin/battery-monitor.sh`) that uses `udevadm monitor -s power_supply` to instantly detect charger plug/unplug events and immediately trigger the notification script. This daemon is launched on boot via `~/.config/hypr/userprefs.conf`.
-2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications.
-3. **Polling Updates & Clean UI:** The script runs regular interval checks every 10 minutes for discharging updates. Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
-
----
-
-## 3. Keyboard Backlight Fixes
-
-### Symptoms
-1. **Unresponsive Keys:** The keyboard backlight keys (`F5` and `F6`) on the MacBook Pro 2015 did not adjust the keyboard illumination. 
-
-### Root Causes
-- **Missing Keybindings:** While the `applesmc` driver correctly exposes the keyboard backlight to the kernel via `/sys/class/leds/smc::kbd_backlight/`, there were no specific `bind` mappings inside the Hyprland configuration to capture `XF86KbdBrightnessUp` and `XF86KbdBrightnessDown` and dispatch a brightness change command.
-
-### Resolutions
-1. **Added Keybindings:** Verified that `brightnessctl` could control `smc::kbd_backlight` without `sudo` privileges. Added repeating keybindings (`bindel`) to `~/.config/hypr/userprefs.conf` for the keyboard backlight keys:
-   ```conf
-   # Keyboard Backlight
-   bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
-   bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
-   ```
-2. **Keyboard Backlight Sleep Timeout:** Hooked into the DPMS listener in `~/.config/hypr/hypridle.conf` to automatically save and turn off the keyboard backlight when the screen goes to sleep (300 seconds), and seamlessly restore the original brightness upon wake.
-
----
-
-## 4. Trackpad Fixes (Tap-and-Drag)
-
-### Symptoms
-Accidental text highlighting and dragging of browser tabs when gently tapping the trackpad on the MacBook Pro.
-
-### Root Cause
-Hyprland's `tap-and-drag` feature is overly sensitive on MacBook trackpads, interpreting a slight finger roll during a tap as a click-and-hold drag event.
-
-### Resolution
-Disabled `tap-and-drag` in the Hyde dotfiles configuration.
-- **File:** `~/.config/hypr/userprefs.conf`
-- **Change:** Set `tap-and-drag = false` in the `input { touchpad { ... } }` block.
-- **Command:** `sed -i 's/tap-and-drag = true/tap-and-drag = false/' ~/.config/hypr/userprefs.conf`
-
----
-
-## 5. Battery Degradation & Sudden Shutdowns
-
-### Symptoms
-The MacBook completely shuts down without warning, despite the battery indicator showing 20-40% remaining. The system also fails to send a low battery notification before dying.
-
-### Root Cause
-Severe hardware degradation of the lithium-ion battery. Diagnostic (`upower -i /org/freedesktop/UPower/devices/battery_BAT0`) revealed:
-- **Charge Cycles:** 1,863 (Apple recommends replacement at 1,000).
-- **Battery Health:** 33.0% of original design capacity.
-When heavily degraded batteries are put under load, they suffer from extreme "voltage sag". The voltage drops instantly below the laptop's minimum operating threshold, causing a hard power cut before the OS has time to trigger a 10% or 5% warning notification.
-
-### Resolution
-This is a **hardware limitation**. Software configuration cannot prevent voltage sag on a worn-out battery. The MacBook must remain plugged in or the battery must be physically replaced.
-
----
-
-## 6. System Stability (OOM Crashes & Swap Space)
-
-### Symptoms
-Heavy applications (like VS Code / Antigravity IDE) terminate unexpectedly during heavy workloads (e.g., running language servers). System logs (`journalctl`) show an `Out of memory: Killed process` (OOM kill) event. The system may also become extremely sluggish if the fast `zram` fills up and memory is aggressively pushed to the slow disk swap.
-
-### Root Cause
-The 2015 MacBook Pro is hard-limited to 8GB of soldered RAM. By default, Arch Linux heavily relies on physical RAM and `zram` (compressed memory). By default, `zram-generator` only allocates half the system RAM (3.8GB). When this fills up, the system pushes memory to the much slower SSD swap file, causing extreme lag. If both completely fill up, the OOM killer terminates applications.
-
-### Resolution
-Implemented a dual-swap strategy: maximizing fast compressed RAM to prevent lag, and providing a large fallback disk swap to prevent crashes.
-
-**1. Increase ZRAM Capacity (Fast Swap)**
-Because `zram` heavily compresses data, we increased its limit to 100% of physical RAM (8GB) to prevent the system from prematurely relying on the slow disk swap.
-1. `echo "zram-size = ram" | sudo tee -a /etc/systemd/zram-generator.conf`
-2. `sudo swapoff /dev/zram0`
-3. `sudo systemctl restart systemd-zram-setup@zram0.service`
-
-**2. Create SSD Swap File (Emergency Fallback)**
-Created an 8GB SSD Swap File to act as an absolute emergency fallback memory, mimicking macOS's dynamic pager to prevent OOM crashes.
-1. `sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress`
-2. `sudo chmod 600 /swapfile`
-3. `sudo mkswap /swapfile`
-4. `sudo swapon /swapfile`
-5. `echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab`
-
----
-
-## 7. IDE Terminal Font Fix (Broken Icons)
-
-### Symptoms
-The integrated terminal inside VS Code/Antigravity shows broken square boxes (`[X]`) instead of icons (like folders, Git branches, or language logos), while the standalone terminal emulator displays them correctly.
-
-### Root Cause
-The ZSH shell prompt (e.g., Powerlevel10k/Starship) relies on "Nerd Fonts" to render custom icons. In this case, the `settings.json` configuration contained extra single quotes around the font name (e.g., `"'CaskaydiaCove Nerd Font'"`). The IDE could not parse the font family name and fell back to the default `monospace` font, which lacks the required glyphs.
-
-### Resolution
-Update the IDE settings in both VS Code and Antigravity IDE to explicitly use the installed Nerd Font without any extra quotes.
-- **Files Modified:** `~/.config/Code/User/settings.json` and `~/.config/Antigravity IDE/User/settings.json`
-- **Change:** `"terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font"`
-
----
-
-## 8. Arch Linux Package Management (pacman vs yay)
-
-### Overview
-- **`pacman`**: The official Arch Linux package manager. Used to install pre-compiled, officially supported software.
-- **`yay` (Yet Another Yogurt)**: An AUR (Arch User Repository) helper. It acts as a wrapper around `pacman` but adds the superpower to download, compile, and install community-maintained software (like `antigravity-ide` or `brave-bin`).
-- **Best Practice:** Use `yay` for everyday usage, as it seamlessly handles both official and AUR packages (`yay -Syu` updates everything).
-
-### Troubleshooting AUR Builds
-If a large AUR package (like Brave or an IDE) finishes building but fails to install with a `sudo: timed out reading password` error, it means the compilation took longer than the default `sudo` timeout. 
-- **Fix:** Simply rerun the install command (`yay -Syu`). The packages are already cached locally (`~/.cache/yay/`), so it will skip compilation and instantly prompt for the password to install.
-
----
-
-## 9. Installed Applications & Development Environment
+## Installed Applications & Development Environment
 
 To make future installations seamless, here is a categorized list of the explicit packages installed on this system.
 
@@ -184,7 +49,112 @@ yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git g
 
 ---
 
-## 10. Desktop UI & Notifications (Waybar, Dunst, Screenshots)
+## Arch Linux Package Management (pacman vs yay)
+
+### Overview
+- **`pacman`**: The official Arch Linux package manager. Used to install pre-compiled, officially supported software.
+- **`yay` (Yet Another Yogurt)**: An AUR (Arch User Repository) helper. It acts as a wrapper around `pacman` but adds the superpower to download, compile, and install community-maintained software (like `antigravity-ide` or `brave-bin`).
+- **Best Practice:** Use `yay` for everyday usage, as it seamlessly handles both official and AUR packages (`yay -Syu` updates everything).
+
+### Troubleshooting AUR Builds
+If a large AUR package (like Brave or an IDE) finishes building but fails to install with a `sudo: timed out reading password` error, it means the compilation took longer than the default `sudo` timeout. 
+- **Fix:** Simply rerun the install command (`yay -Syu`). The packages are already cached locally (`~/.cache/yay/`), so it will skip compilation and instantly prompt for the password to install.
+
+---
+
+
+# ⚡ Hardware & Power Management
+
+## Battery Notification System Fixes
+
+### Symptoms
+1. **Notification Spam (Jitter):** A physically degraded battery caused rapid oscillation between "Charging" and "Discharging" states near full charge, spamming notifications.
+2. **Incorrect Percentage:** The battery notification showed ~22% when plugged/unplugged, while Waybar and the desktop environment correctly showed ~72%.
+3. **10-Second Status Lag:** When physically plugging or unplugging the MagSafe charger, both Waybar and the notifications took ~10 seconds to respond.
+
+### Root Causes
+- **Apple SMC Sysfs Capacity Bug:** On MacBooks, the kernel (`/sys/class/power_supply/BAT0/capacity`) calculates the percentage relative to the *factory original design capacity*, rather than the *current degraded usable capacity*. This resulted in an artificially low reading in the notification script.
+- **Apple SMC Status Lag:** The internal battery controller takes 10-15 seconds to fully transition states and report it to `sysfs BAT0`. 
+- **Waybar/DBus Polling:** Waybar and the `batterynotify.sh` script were strictly watching the lagging battery state instead of the instantaneously updating AC adapter pin state (`ADP1`).
+
+### Resolutions
+1. **Instant Charger Detection (udevadm):** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. Created a custom active daemon (`~/.local/bin/battery-monitor.sh`) that uses `udevadm monitor -s power_supply` to instantly detect charger plug/unplug events and immediately trigger the notification script. This daemon is launched on boot via `~/.config/hypr/userprefs.conf`.
+2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications.
+3. **Polling Updates & Clean UI:** The script runs regular interval checks every 10 minutes for discharging updates. Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
+
+---
+
+## Battery Degradation & Sudden Shutdowns
+
+### Symptoms
+The MacBook completely shuts down without warning, despite the battery indicator showing 20-40% remaining. The system also fails to send a low battery notification before dying.
+
+### Root Cause
+Severe hardware degradation of the lithium-ion battery. Diagnostic (`upower -i /org/freedesktop/UPower/devices/battery_BAT0`) revealed:
+- **Charge Cycles:** 1,863 (Apple recommends replacement at 1,000).
+- **Battery Health:** 33.0% of original design capacity.
+When heavily degraded batteries are put under load, they suffer from extreme "voltage sag". The voltage drops instantly below the laptop's minimum operating threshold, causing a hard power cut before the OS has time to trigger a 10% or 5% warning notification.
+
+### Resolution
+This is a **hardware limitation**. Software configuration cannot prevent voltage sag on a worn-out battery. The MacBook must remain plugged in or the battery must be physically replaced.
+
+---
+
+
+# ⌨️ Input Devices
+
+## Keyboard Backlight Fixes
+
+### Symptoms
+1. **Unresponsive Keys:** The keyboard backlight keys (`F5` and `F6`) on the MacBook Pro 2015 did not adjust the keyboard illumination. 
+
+### Root Causes
+- **Missing Keybindings:** While the `applesmc` driver correctly exposes the keyboard backlight to the kernel via `/sys/class/leds/smc::kbd_backlight/`, there were no specific `bind` mappings inside the Hyprland configuration to capture `XF86KbdBrightnessUp` and `XF86KbdBrightnessDown` and dispatch a brightness change command.
+
+### Resolutions
+1. **Added Keybindings:** Verified that `brightnessctl` could control `smc::kbd_backlight` without `sudo` privileges. Added repeating keybindings (`bindel`) to `~/.config/hypr/userprefs.conf` for the keyboard backlight keys:
+   ```conf
+   # Keyboard Backlight
+   bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
+   bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
+   ```
+2. **Keyboard Backlight Sleep Timeout:** Hooked into the DPMS listener in `~/.config/hypr/hypridle.conf` to automatically save and turn off the keyboard backlight when the screen goes to sleep (300 seconds), and seamlessly restore the original brightness upon wake.
+
+---
+
+## Trackpad Fixes (Tap-and-Drag)
+
+### Symptoms
+Accidental text highlighting and dragging of browser tabs when gently tapping the trackpad on the MacBook Pro.
+
+### Root Cause
+Hyprland's `tap-and-drag` feature is overly sensitive on MacBook trackpads, interpreting a slight finger roll during a tap as a click-and-hold drag event.
+
+### Resolution
+Disabled `tap-and-drag` in the Hyde dotfiles configuration.
+- **File:** `~/.config/hypr/userprefs.conf`
+- **Change:** Set `tap-and-drag = false` in the `input { touchpad { ... } }` block.
+- **Command:** `sed -i 's/tap-and-drag = true/tap-and-drag = false/' ~/.config/hypr/userprefs.conf`
+
+---
+
+
+# 🎨 Desktop Environment & UI (Hyprland / HyDE)
+
+## Hyprland Config Errors
+
+### Symptoms
+A red banner displaying `gestures:workspace_swipe does not exist` appeared on startup due to deprecated configuration syntax in newer Hyprland releases.
+
+### Root Cause
+- **Deprecated Syntax:** Hyprland `0.41.0+` moved the `workspace_swipe` configuration. The old `gestures:workspace_swipe` variables were triggering parsing errors.
+
+### Resolution
+- **Resolution:** Remove the deprecated variables from `~/.config/hypr/userprefs.conf`. (These were cleared out, and `hyprctl reload` was issued to flush the error banner).
+
+---
+
+## Desktop UI & Notifications (Waybar, Dunst, Screenshots)
 
 ### Waybar
 - **Transparent Background:** The default opaque island background for Waybar was made fully transparent by setting `@define-color bar-bg rgba(0, 0, 0, 0.0);` in `~/.config/waybar/theme.css`.
@@ -203,7 +173,7 @@ yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git g
 
 ---
 
-## 11. Waybar Missing / Invisible Bug
+## Waybar Missing / Invisible Bug
 
 ### Symptoms
 Waybar process is running and Hyprland correctly maps it (occupying space on screen), but the bar is completely invisible to the user.
@@ -218,7 +188,74 @@ Custom CSS in `~/.config/waybar/user-style.css` contained a "TRANSPARENT TEXT-ON
 
 ---
 
-## 12. Recommendations for Hyprland Themes
+## Waybar Tray Popups Overlapping Bar
+
+### Symptoms
+When clicking a tray icon (such as the Wi-Fi icon for `nm-applet`), the GTK popup menu drops down *over* the Waybar itself (overlapping the icons), instead of dropping down cleanly below the bar.
+
+### Root Cause
+This is caused by missing positioning metadata in the Waybar layout configuration (`config.jsonc`). Without explicitly defining `"position": "top"`, Waybar assumes the top position visually, but GTK popups (like tray menus) fail to identify the correct screen edge to anchor to. This causes the popup coordinates to be calculated incorrectly, spawning on top of the bar. Furthermore, the missing `"position": "top"` prevents Waybar from applying the `window#waybar.top` CSS styles, leading to missing padding and margins that the theme expects.
+
+### Resolution
+- **Fix:** Explicitly define the position parameter in the layout file.
+- **File:** `~/.config/waybar/config.jsonc` (and the associated source layout in `~/.local/share/waybar/layouts/`).
+- **Change:** Add `"position": "top",` directly under the `"layer": "top",` property.
+- **Apply:** Restart Waybar (e.g., via `killall waybar && waybar &` or using the `hyde-shell waybar` utility).
+
+---
+
+## Dunst Notification Icons Overridden by Wallbash
+
+### Symptoms
+Notifications triggered by scripts (e.g., `battery-notify.sh` using `notify-send -i battery-full-symbolic`) were not displaying their specified icons. Instead, they constantly showed the default `hyprdots.svg` logo.
+
+### Root Cause
+The HyDE Wallbash script templates globally forced an `icon = ...` override in the Dunst urgency settings (`[urgency_low]`, `[urgency_normal]`, etc.). This caused Dunst to ignore the application-provided icon and forcefully replace it.
+
+### Resolution
+- **Files Modified:** 
+  - `~/.local/share/wallbash/always/dunst.dcol`
+  - `~/.local/share/wallbash/scripts/dunst.sh`
+- **Change:** Replaced the `icon = ` directives with `default_icon = `. This tells Dunst to use `hyprdots.svg` only as a fallback, preserving native application and battery icons.
+- **Apply:** Ran `hyde-shell wallbash dunst` to regenerate the configuration.
+
+---
+
+## Screenshot "Error" Notification on Cancellation
+
+### Symptoms
+When a user pressed `Escape` to cancel a region selection during a screenshot, the system sent a misleading notification: "Screenshot Error: Failed to take screenshot".
+
+### Root Cause
+The `take_screenshot` function inside the `screenshot.sh` script did not differentiate between a genuine failure of the `grimblast` capturing tool and a user-initiated cancellation.
+
+### Resolution
+Updated the fallback condition in the script to display a more accurate cancellation message.
+- **File Modified:** `~/.local/lib/hyde/screenshot.sh`
+- **Change:** Changed the `send_notifs` arguments from `"Screenshot Error" "Failed to take screenshot"` to `"Screenshot Cancelled" "Screenshot action was cancelled"`.
+
+---
+
+## Hypridle Sleep & Lock Timings
+
+### Symptoms
+The system was configured to lock the session *before* the screen turned off, leading to a frustrating experience where waking the screen immediately presented a lock screen even if it hadn't slept yet. Additionally, the system appeared to "stay up" during charging, although idle behavior shouldn't inherently differ.
+
+### Root Cause
+In `~/.config/hypr/hypridle.conf`, the lock timeout (`120s`) occurred before the DPMS screen off timeout (`300s`). 
+
+### Resolution
+Reordered the `hypridle` timeouts logically so that the system sleeps first, and locks *after* it has been asleep for a period of time:
+- **Dim:** 120s
+- **DPMS Off (Sleep):** 300s
+- **Lock Session:** 600s
+- **Suspend:** 1200s
+
+*(Note: To ensure idle timeouts work while charging, make sure Waybar's idle inhibitor is turned off).*
+
+---
+
+## Recommendations for Hyprland Themes
 
 If you are looking to expand beyond the default themes provided by HyDE (Hyprland Desktop Environment), here are the best places and tools to find and install more themes:
 
@@ -248,107 +285,40 @@ Because you are using **HyDE**, a highly integrated script-based environment, ma
 
 ---
 
-## 13. Waybar Tray Popups Overlapping Bar
+
+# 🚀 System Stability & Performance
+
+## System Stability (OOM Crashes & Swap Space)
 
 ### Symptoms
-When clicking a tray icon (such as the Wi-Fi icon for `nm-applet`), the GTK popup menu drops down *over* the Waybar itself (overlapping the icons), instead of dropping down cleanly below the bar.
+Heavy applications (like VS Code / Antigravity IDE) terminate unexpectedly during heavy workloads (e.g., running language servers). System logs (`journalctl`) show an `Out of memory: Killed process` (OOM kill) event. The system may also become extremely sluggish if the fast `zram` fills up and memory is aggressively pushed to the slow disk swap.
 
 ### Root Cause
-This is caused by missing positioning metadata in the Waybar layout configuration (`config.jsonc`). Without explicitly defining `"position": "top"`, Waybar assumes the top position visually, but GTK popups (like tray menus) fail to identify the correct screen edge to anchor to. This causes the popup coordinates to be calculated incorrectly, spawning on top of the bar. Furthermore, the missing `"position": "top"` prevents Waybar from applying the `window#waybar.top` CSS styles, leading to missing padding and margins that the theme expects.
+The 2015 MacBook Pro is hard-limited to 8GB of soldered RAM. By default, Arch Linux heavily relies on physical RAM and `zram` (compressed memory). By default, `zram-generator` only allocates half the system RAM (3.8GB). When this fills up, the system pushes memory to the much slower SSD swap file, causing extreme lag. If both completely fill up, the OOM killer terminates applications.
 
 ### Resolution
-- **Fix:** Explicitly define the position parameter in the layout file.
-- **File:** `~/.config/waybar/config.jsonc` (and the associated source layout in `~/.local/share/waybar/layouts/`).
-- **Change:** Add `"position": "top",` directly under the `"layer": "top",` property.
-- **Apply:** Restart Waybar (e.g., via `killall waybar && waybar &` or using the `hyde-shell waybar` utility).
+Implemented a dual-swap strategy: maximizing fast compressed RAM to prevent lag, and providing a large fallback disk swap to prevent crashes.
+
+**1. Increase ZRAM Capacity (Fast Swap)**
+Because `zram` heavily compresses data, we increased its limit to 100% of physical RAM (8GB) to prevent the system from prematurely relying on the slow disk swap.
+1. `echo "zram-size = ram" | sudo tee -a /etc/systemd/zram-generator.conf`
+2. `sudo swapoff /dev/zram0`
+3. `sudo systemctl restart systemd-zram-setup@zram0.service`
+
+**2. Create SSD Swap File (Emergency Fallback)**
+Created an 8GB SSD Swap File to act as an absolute emergency fallback memory, mimicking macOS's dynamic pager to prevent OOM crashes.
+1. `sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress`
+2. `sudo chmod 600 /swapfile`
+3. `sudo mkswap /swapfile`
+4. `sudo swapon /swapfile`
+5. `echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab`
 
 ---
 
-## 14. Hypridle Sleep & Lock Timings
 
-### Symptoms
-The system was configured to lock the session *before* the screen turned off, leading to a frustrating experience where waking the screen immediately presented a lock screen even if it hadn't slept yet. Additionally, the system appeared to "stay up" during charging, although idle behavior shouldn't inherently differ.
+# 📁 File Management
 
-### Root Cause
-In `~/.config/hypr/hypridle.conf`, the lock timeout (`120s`) occurred before the DPMS screen off timeout (`300s`). 
-
-### Resolution
-Reordered the `hypridle` timeouts logically so that the system sleeps first, and locks *after* it has been asleep for a period of time:
-- **Dim:** 120s
-- **DPMS Off (Sleep):** 300s
-- **Lock Session:** 600s
-- **Suspend:** 1200s
-
-*(Note: To ensure idle timeouts work while charging, make sure Waybar's idle inhibitor is turned off).*
-
----
-
-## 15. Dunst Notification Icons Overridden by Wallbash
-
-### Symptoms
-Notifications triggered by scripts (e.g., `battery-notify.sh` using `notify-send -i battery-full-symbolic`) were not displaying their specified icons. Instead, they constantly showed the default `hyprdots.svg` logo.
-
-### Root Cause
-The HyDE Wallbash script templates globally forced an `icon = ...` override in the Dunst urgency settings (`[urgency_low]`, `[urgency_normal]`, etc.). This caused Dunst to ignore the application-provided icon and forcefully replace it.
-
-### Resolution
-- **Files Modified:** 
-  - `~/.local/share/wallbash/always/dunst.dcol`
-  - `~/.local/share/wallbash/scripts/dunst.sh`
-- **Change:** Replaced the `icon = ` directives with `default_icon = `. This tells Dunst to use `hyprdots.svg` only as a fallback, preserving native application and battery icons.
-- **Apply:** Ran `hyde-shell wallbash dunst` to regenerate the configuration.
-
----
-
-## 16. Zoom Screen Sharing on Wayland (Hyprland)
-
-### Symptoms
-Screen sharing in Zoom struggles or results in black screens. 
-
-### Root Cause
-Wayland's security model prevents direct screen scraping. Applications must request screen streams through `xdg-desktop-portal`. By default, Zoom uses X11 capturing (via XWayland) which fails under Hyprland.
-
-### Resolution
-1. **Official Zoom Linux Client:** 
-   Edit `~/.config/zoomus.conf` and add `enableWaylandShare=true` under the `[General]` section. Ensure `xdg-desktop-portal-hyprland` is installed.
-2. **Web Browser (Brave/Chrome):**
-   Ensure the browser runs natively in Wayland. Go to `brave://flags` and set:
-   - **Preferred Ozone platform:** `Wayland` (or `Auto`)
-   - **WebRTC PipeWire support:** `Enabled`
-
----
-
-## 17. ZSH Starship Prompt Missing in IDE Terminals
-
-### Symptoms
-The terminal in VS Code and Antigravity IDE displayed a basic Starship prompt (e.g., `^ ~ >`) instead of the fully customized HyDE Starship layout.
-
-### Root Cause
-IDE integrated terminals launch as "interactive non-login" shells by default. This causes ZSH to skip sourcing `/etc/profile` and potentially other global environment setups, meaning the `$ZDOTDIR` variable might not be inherited. As a result, the terminal fell back to reading the default `~/.zshrc` instead of HyDE's `~/.config/zsh/.zshrc`. The default `~/.zshrc` initialized Starship but lacked the `STARSHIP_CONFIG` environment variable pointer to HyDE's custom `starship.toml` layout, causing it to fall back to the built-in default layout.
-
-### Resolution
-Added an explicit export path to the base `~/.zshrc` file to ensure any shell invocation correctly finds the Starship config.
-- **File Modified:** `~/.zshrc`
-- **Change:** Added `export STARSHIP_CONFIG=$HOME/.config/starship/starship.toml` immediately before the `eval "$(starship init zsh)"` line.
-
----
-
-## 18. Screenshot "Error" Notification on Cancellation
-
-### Symptoms
-When a user pressed `Escape` to cancel a region selection during a screenshot, the system sent a misleading notification: "Screenshot Error: Failed to take screenshot".
-
-### Root Cause
-The `take_screenshot` function inside the `screenshot.sh` script did not differentiate between a genuine failure of the `grimblast` capturing tool and a user-initiated cancellation.
-
-### Resolution
-Updated the fallback condition in the script to display a more accurate cancellation message.
-- **File Modified:** `~/.local/lib/hyde/screenshot.sh`
-- **Change:** Changed the `send_notifs` arguments from `"Screenshot Error" "Failed to take screenshot"` to `"Screenshot Cancelled" "Screenshot action was cancelled"`.
-
----
-
-## 19. Dolphin File Manager Enhancements
+## Dolphin File Manager Enhancements
 
 ### Symptoms
 Dolphin lacked some integrations out of the box, throwing errors about missing Konsole when trying to open the embedded terminal (`F4`), and lacking thumbnails/previews for some file types. Additionally, the GTK file chooser lacked the "Notes" directory in the Places sidebar.
@@ -369,3 +339,57 @@ Dolphin lacked some integrations out of the box, throwing errors about missing K
    ```bash
    echo "file:///home/vinnoh/Notes Notes" >> ~/.config/gtk-3.0/bookmarks
    ```
+
+
+# 💻 Development & Terminal
+
+## IDE Terminal Font Fix (Broken Icons)
+
+### Symptoms
+The integrated terminal inside VS Code/Antigravity shows broken square boxes (`[X]`) instead of icons (like folders, Git branches, or language logos), while the standalone terminal emulator displays them correctly.
+
+### Root Cause
+The ZSH shell prompt (e.g., Powerlevel10k/Starship) relies on "Nerd Fonts" to render custom icons. In this case, the `settings.json` configuration contained extra single quotes around the font name (e.g., `"'CaskaydiaCove Nerd Font'"`). The IDE could not parse the font family name and fell back to the default `monospace` font, which lacks the required glyphs.
+
+### Resolution
+Update the IDE settings in both VS Code and Antigravity IDE to explicitly use the installed Nerd Font without any extra quotes.
+- **Files Modified:** `~/.config/Code/User/settings.json` and `~/.config/Antigravity IDE/User/settings.json`
+- **Change:** `"terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font"`
+
+---
+
+## ZSH Starship Prompt Missing in IDE Terminals
+
+### Symptoms
+The terminal in VS Code and Antigravity IDE displayed a basic Starship prompt (e.g., `^ ~ >`) instead of the fully customized HyDE Starship layout.
+
+### Root Cause
+IDE integrated terminals launch as "interactive non-login" shells by default. This causes ZSH to skip sourcing `/etc/profile` and potentially other global environment setups, meaning the `$ZDOTDIR` variable might not be inherited. As a result, the terminal fell back to reading the default `~/.zshrc` instead of HyDE's `~/.config/zsh/.zshrc`. The default `~/.zshrc` initialized Starship but lacked the `STARSHIP_CONFIG` environment variable pointer to HyDE's custom `starship.toml` layout, causing it to fall back to the built-in default layout.
+
+### Resolution
+Added an explicit export path to the base `~/.zshrc` file to ensure any shell invocation correctly finds the Starship config.
+- **File Modified:** `~/.zshrc`
+- **Change:** Added `export STARSHIP_CONFIG=$HOME/.config/starship/starship.toml` immediately before the `eval "$(starship init zsh)"` line.
+
+---
+
+
+# 🌐 Applications & Networking
+
+## Zoom Screen Sharing on Wayland (Hyprland)
+
+### Symptoms
+Screen sharing in Zoom struggles or results in black screens. 
+
+### Root Cause
+Wayland's security model prevents direct screen scraping. Applications must request screen streams through `xdg-desktop-portal`. By default, Zoom uses X11 capturing (via XWayland) which fails under Hyprland.
+
+### Resolution
+1. **Official Zoom Linux Client:** 
+   Edit `~/.config/zoomus.conf` and add `enableWaylandShare=true` under the `[General]` section. Ensure `xdg-desktop-portal-hyprland` is installed.
+2. **Web Browser (Brave/Chrome):**
+   Ensure the browser runs natively in Wayland. Go to `brave://flags` and set:
+   - **Preferred Ozone platform:** `Wayland` (or `Auto`)
+   - **WebRTC PipeWire support:** `Enabled`
+
+---
