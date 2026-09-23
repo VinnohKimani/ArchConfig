@@ -86,15 +86,22 @@ This is a **hardware limitation**. Software configuration cannot prevent voltage
 ## 6. System Stability (OOM Crashes & Swap Space)
 
 ### Symptoms
-Heavy applications (like VS Code / Antigravity IDE) terminate unexpectedly during heavy workloads (e.g., running language servers). System logs (`journalctl`) show an `Out of memory: Killed process` (OOM kill) event.
+Heavy applications (like VS Code / Antigravity IDE) terminate unexpectedly during heavy workloads (e.g., running language servers). System logs (`journalctl`) show an `Out of memory: Killed process` (OOM kill) event. The system may also become extremely sluggish if the fast `zram` fills up and memory is aggressively pushed to the slow disk swap.
 
 ### Root Cause
-The 2015 MacBook Pro is hard-limited to 8GB of soldered RAM. By default, Arch Linux relies heavily on physical RAM and `zram` (compressed memory). When both fill up, Linux lacks a fallback SSD swap file (which macOS sets up dynamically by default), resulting in the kernel forcefully killing the heaviest application to save the system from freezing.
+The 2015 MacBook Pro is hard-limited to 8GB of soldered RAM. By default, Arch Linux heavily relies on physical RAM and `zram` (compressed memory). By default, `zram-generator` only allocates half the system RAM (3.8GB). When this fills up, the system pushes memory to the much slower SSD swap file, causing extreme lag. If both completely fill up, the OOM killer terminates applications.
 
 ### Resolution
-Created an 8GB SSD Swap File to act as emergency fallback memory, mimicking macOS's dynamic pager.
+Implemented a dual-swap strategy: maximizing fast compressed RAM to prevent lag, and providing a large fallback disk swap to prevent crashes.
 
-**Step-by-Step Commands (for ext4 filesystems):**
+**1. Increase ZRAM Capacity (Fast Swap)**
+Because `zram` heavily compresses data, we increased its limit to 100% of physical RAM (8GB) to prevent the system from prematurely relying on the slow disk swap.
+1. `echo "zram-size = ram" | sudo tee -a /etc/systemd/zram-generator.conf`
+2. `sudo swapoff /dev/zram0`
+3. `sudo systemctl restart systemd-zram-setup@zram0.service`
+
+**2. Create SSD Swap File (Emergency Fallback)**
+Created an 8GB SSD Swap File to act as an absolute emergency fallback memory, mimicking macOS's dynamic pager to prevent OOM crashes.
 1. `sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress`
 2. `sudo chmod 600 /swapfile`
 3. `sudo mkswap /swapfile`
