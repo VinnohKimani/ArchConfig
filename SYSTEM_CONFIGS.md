@@ -340,3 +340,25 @@ The `take_screenshot` function inside the `screenshot.sh` script did not differe
 Updated the fallback condition in the script to display a more accurate cancellation message.
 - **File Modified:** `~/.local/lib/hyde/screenshot.sh`
 - **Change:** Changed the `send_notifs` arguments from `"Screenshot Error" "Failed to take screenshot"` to `"Screenshot Cancelled" "Screenshot action was cancelled"`.
+
+---
+
+## 19. Dolphin File Manager Enhancements
+
+### Symptoms
+Dolphin lacked some integrations out of the box, throwing errors about missing Konsole when trying to open the embedded terminal (`F4`), and lacking thumbnails/previews for some file types. Additionally, the GTK file chooser lacked the "Notes" directory in the Places sidebar.
+
+### Root Cause
+- Missing optional dependencies for Dolphin and KDE components.
+- GTK file chooser relies on a separate `~/.config/gtk-3.0/bookmarks` file which was missing the `Notes` folder.
+
+### Resolution
+1. **Installed KDE Enhancements**: Added the following packages to fully configure Dolphin:
+   - `konsole`: Enables the embedded `F4` terminal panel.
+   - `ffmpegthumbs`, `kdegraphics-thumbnailers`, `kimageformats`: Enhances inline file previews for video, PDF, and specialized images.
+   - `ark`: KDE's archive manager for quick zip/tar.gz extraction context menus.
+   - `dolphin-plugins`: Adds Git status overlay icons for directories and files under version control.
+2. **GTK Bookmarks**: Appended the `Notes` directory to GTK bookmarks using:
+   ```bash
+   echo "file:///home/vinnoh/Notes Notes" >> ~/.config/gtk-3.0/bookmarks
+   ```
