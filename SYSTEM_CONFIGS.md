@@ -358,6 +358,8 @@ Dolphin lacked some integrations out of the box, throwing errors about missing K
    - `ffmpegthumbs`, `kdegraphics-thumbnailers`, `kimageformats`: Enhances inline file previews for video, PDF, and specialized images.
    - `ark`: KDE's archive manager for quick zip/tar.gz extraction context menus.
    - `dolphin-plugins`: Adds Git status overlay icons for directories and files under version control.
+   - `filelight`: Visual disk usage analyzer integrated into Dolphin's right-click context menu.
+   - `kdeconnect`: Seamless phone integration (file sharing, clipboard sync) directly from Dolphin.
 2. **GTK Bookmarks**: Appended the `Notes` directory to GTK bookmarks using:
    ```bash
    echo "file:///home/vinnoh/Notes Notes" >> ~/.config/gtk-3.0/bookmarks
