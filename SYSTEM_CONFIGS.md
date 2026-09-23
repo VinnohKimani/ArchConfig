@@ -164,6 +164,11 @@ To make future installations seamless, here is a categorized list of the explici
 - **UI Components:** `waybar`, `rofi`, `wlogout`, `dunst`, `kitty` (Terminal)
 - **Display Manager:** `sddm`
 
+### 📁 File Management (Dolphin)
+- **Core Integrations:** `konsole`, `ark`, `filelight`, `kdeconnect`
+- **Thumbnails & Previews:** `ffmpegthumbs`, `kdegraphics-thumbnailers`, `kimageformats`
+- **Version Control:** `dolphin-plugins`
+
 ### 🛠️ CLI Utilities & System Tools
 - **Shell:** `zsh`, `starship` (Prompt)
 - **System Monitors:** `btop`, `htop`, `fastfetch`
@@ -174,7 +179,7 @@ To make future installations seamless, here is a categorized list of the explici
 For your next Arch installation, after installing `yay`, you can run this command to restore your entire development environment and application suite at once:
 
 ```bash
-yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja brave-bin firefox hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent waybar rofi wlogout dunst kitty sddm zsh starship btop fastfetch fzf bat tree jq zram-generator
+yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja brave-bin firefox hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent waybar rofi wlogout dunst kitty sddm zsh starship btop fastfetch fzf bat tree jq zram-generator konsole ark filelight kdeconnect ffmpegthumbs kdegraphics-thumbnailers kimageformats dolphin-plugins
 ```
 
 ---
