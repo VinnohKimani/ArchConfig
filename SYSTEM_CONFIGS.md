@@ -84,6 +84,21 @@ If a large AUR package (like Brave or an IDE) finishes building but fails to ins
 
 ---
 
+## Audio Volume Auto-Unmute
+
+### Symptoms
+When the system audio is muted, pressing the volume up or volume down hotkeys increased the volume level but did not automatically unmute the speakers.
+
+### Root Cause
+The default `volumecontrol.sh` script used by HyDE only passed the increment/decrement arguments to `wpctl` or `pamixer`, without explicitly toggling the mute state off.
+
+### Resolution
+Modified the backend volume control script to send an explicit unmute command whenever the volume is adjusted, mimicking standard macOS behavior.
+- **File Modified:** `~/.local/lib/hyde/volumecontrol.sh`
+- **Change:** Injected an explicit unmute command inside the `change_volume` function when the action is `i` (increase) or `d` (decrease).
+
+---
+
 ## Battery Degradation & Sudden Shutdowns
 
 ### Symptoms
@@ -138,6 +153,22 @@ Disabled `tap-and-drag` in the Hyde dotfiles configuration.
 
 ---
 
+## Custom Keybindings (OBS Screen Recording)
+
+### Symptoms
+No default keybinding existed in HyDE to instantly start or stop screen recording using OBS Studio.
+
+### Resolution
+Added a non-conflicting custom keybinding to the user preferences.
+- **File:** `~/.config/hypr/userprefs.conf`
+- **Keybinding Added:** `Super + Alt + R`
+```conf
+# Screen Recording
+bind = $mainMod ALT, R, exec, obs --startrecording
+```
+
+---
+
 
 # 🎨 Desktop Environment & UI (Hyprland / HyDE)
 
@@ -168,8 +199,14 @@ A red banner displaying `gestures:workspace_swipe does not exist` appeared on st
 - **Fix:** Added `[screenshot] annotation_enabled = false` to `~/.config/hyde/config.toml`.
 
 ### Hyprland Keybinding Conflicts
-- **Super+Q & Super+W:** Custom keybindings in `~/.config/hypr/userprefs.conf` were overriding the default `keybindings.conf` behavior by mapping both to `killactive`. 
-- **Fix:** Removed the custom overrides, restoring `Super+Q` to close the focused window, and `Super+W` to toggle floating mode.
+
+### Symptoms
+1. **Kill Active Conflict:** Custom keybindings in `~/.config/hypr/userprefs.conf` were overriding the default `keybindings.conf` behavior by mapping both `Super+Q` and `Super+W` to `killactive`. 
+2. **Duplicate Binding Warning:** Hyprland displayed a yellow warning banner on startup indicating duplicate bindings.
+
+### Resolutions
+1. **Kill Active:** Removed the custom overrides, restoring `Super+Q` to close the focused window, and `Super+W` to toggle floating mode.
+2. **Duplicate Binding:** The `Escape` key (mapped to `dunstctl close-all`) was defined twice. Removed the definition from the base `~/.config/hypr/keybindings.conf` file to resolve the parsing warning.
 
 ---
 
@@ -239,17 +276,23 @@ Updated the fallback condition in the script to display a more accurate cancella
 ## Hypridle Sleep & Lock Timings
 
 ### Symptoms
-The system was configured to lock the session *before* the screen turned off, leading to a frustrating experience where waking the screen immediately presented a lock screen even if it hadn't slept yet. Additionally, the system appeared to "stay up" during charging, although idle behavior shouldn't inherently differ.
+1. **Lock Screen Timing:** The system was configured to lock the session *before* the screen turned off, leading to a frustrating experience where waking the screen immediately presented a lock screen even if it hadn't slept yet.
+2. **Log Spam (Service Already Loaded):** When the system went to sleep, the `journalctl` logs were flooded with `Failed to start transient service unit: Unit hyde-lockscreen.service was already loaded` errors.
 
-### Root Cause
-In `~/.config/hypr/hypridle.conf`, the lock timeout (`120s`) occurred before the DPMS screen off timeout (`300s`). 
+### Root Causes
+1. In `~/.config/hypr/hypridle.conf`, the lock timeout (`120s`) occurred before the DPMS screen off timeout (`300s`). 
+2. The `before_sleep_cmd` triggered the lock screen concurrently with the idle timeout, causing `systemd-run` to attempt launching the lockscreen service multiple times simultaneously.
 
-### Resolution
-Reordered the `hypridle` timeouts logically so that the system sleeps first, and locks *after* it has been asleep for a period of time:
-- **Dim:** 120s
-- **DPMS Off (Sleep):** 300s
-- **Lock Session:** 600s
-- **Suspend:** 1200s
+### Resolutions
+1. **Reordered Timeouts:** Reordered the `hypridle` timeouts logically so that the system sleeps first, and locks *after* it has been asleep for a period of time:
+   - **Dim:** 120s
+   - **DPMS Off (Sleep):** 300s
+   - **Lock Session:** 600s
+   - **Suspend:** 1200s
+2. **Lock Command Check:** Modified `$LOCK_CMD` in `~/.config/hypr/hypridle.conf` to check if the lockscreen service is already active before trying to launch it:
+   ```conf
+   $LOCK_CMD = systemctl --user is-active --quiet hyde-lockscreen.service || hyde-shell lockscreen.sh
+   ```
 
 *(Note: To ensure idle timeouts work while charging, make sure Waybar's idle inhibitor is turned off).*
 
@@ -342,6 +385,22 @@ Dolphin lacked some integrations out of the box, throwing errors about missing K
 
 
 # 💻 Development & Terminal
+
+## Konsole Wallbash Integration (Dolphin Terminal)
+
+### Symptoms
+The embedded terminal inside the Dolphin file manager (`Konsole`) did not automatically adapt its colors to match the system theme changes triggered by HyDE/Wallbash.
+
+### Root Cause
+HyDE dynamically templates `kitty` natively, but does not include dynamic color (`.dcol`) templates for Konsole out of the box. Konsole uses a custom RGB INI-style `.colorscheme` format.
+
+### Resolution
+Created a custom Wallbash template and deployment script to dynamically intercept HyDE theme changes, translate them into Konsole's RGB format, and hot-reload active Konsole instances.
+1. **Created Template (`~/.local/share/wallbash/always/konsole.dcol`):** Maps `<wallbash_pry1>`, `<wallbash_txt1>`, etc., to Konsole's `[Color0]...` syntax.
+2. **Created Parser Script (`~/.local/share/wallbash/scripts/konsole.sh`):** Translates HEX color codes directly to RGB using `sed` math operations, updates the `default.profile`, and uses `qdbus` to force all active Konsole sessions to instantly reload the new colors.
+3. This guarantees the Dolphin embedded terminal always matches the current desktop aesthetic.
+
+---
 
 ## IDE Terminal Font Fix (Broken Icons)
 
