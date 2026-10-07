@@ -452,3 +452,28 @@ Wayland's security model prevents direct screen scraping. Applications must requ
    - **WebRTC PipeWire support:** `Enabled`
 
 ---
+
+# 🛡️ System Stabilization & Cleanup (Oct 2026)
+
+## 1. Services Cleanup
+- **Disabled:** `espeakup.service` (crashed on boot), `NetworkManager-wait-online.service` (slowed boot), `auto-cpufreq.service` (conflicted with `power-profiles-daemon`).
+- **Modified:** `docker.service` disabled in favor of `docker.socket` (starts only on-demand to save RAM).
+- **Kept:** `power-profiles-daemon.service` as the primary power manager.
+- **Undo:** `sudo systemctl enable <service-name>` or `sudo systemctl unmask <service-name>`.
+
+## 2. Boot & Security
+- **Fixed:** `/boot` partition permissions tightened from `0022` to `0077` in `/etc/fstab` to fix the random seed security warning.
+- **Undo:** Revert `fmask` and `dmask` in `/etc/fstab` back to `0022`.
+
+## 3. Power & Sleep Stability (Sudden Shutdowns)
+- **Fixed:** UPower was misconfigured to aggressively shut down the system at 27% battery (`PercentageAction=27`). Thresholds were lowered (`PercentageCritical=5`, `PercentageAction=2`) so it relies on the hardware limit instead.
+- **Fixed:** Created `~/.local/bin/safe-suspend.sh` wrapper and bound it to `~/.config/hypr/hypridle.conf` and `~/.config/hypr/userprefs.conf`. This prevents the laptop from sleeping if battery is < 25% and unplugged, avoiding "dead on wake" scenarios caused by the degraded battery.
+- **Undo:** Revert UPower thresholds in `/etc/UPower/UPower.conf`. Revert `hypridle.conf` and `userprefs.conf` to use `systemctl suspend` directly.
+
+## 4. Wi-Fi Stack & Eduroam
+- **Fixed:** Severe DHCP conflicts resolved by completely removing the `iwd` backend and overrides (`wifi.backend=iwd`). NetworkManager was reverted to the native and highly stable `wpa_supplicant` backend.
+- **Kept:** Broadcom fixes (`mac-rand.conf`, `default-wifi-powersave-on.conf`, and `brcmfmac feature_disable=0x82000`) were left perfectly intact as they fix hardware bugs regardless of the backend.
+- **Eduroam:** Configured natively through NetworkManager using WPA-EAP (PEAP/MSCHAPv2), securing passwords inside the NetworkManager Secret Store instead of plain text files.
+- **Undo:** Re-add `wifi.backend=iwd` to `/etc/NetworkManager/conf.d/iwd.conf`, disable `wpa_supplicant`, and enable `iwd.service`.
+
+---

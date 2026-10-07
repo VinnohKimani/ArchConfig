@@ -10,6 +10,16 @@ By supplying the configuration directly to `iwd`, we bypass any GUI bugs and ens
 
 - `eduroam.8021x`: The template configuration file that `iwd` reads to understand the security protocols (PEAP/MSCHAPV2) and your credentials.
 - `install_eduroam.sh`: A helper script that safely copies the configuration into the protected system directory (`/var/lib/iwd/`) with the correct permissions.
+- `claude_diagnostics.sh`: An isolated diagnostic script used to test native `iwd` connectivity without permanently altering NetworkManager. It temporarily pauses NetworkManager's control of `wlan0`, connects using `iwd`, prints the connection logs, and then automatically cleans up.
+
+### Using the Diagnostic Script
+
+If you are encountering persistent issues with NetworkManager and Eduroam, you can use `claude_diagnostics.sh` to isolate the problem to `iwd`.
+
+1. Open `claude_diagnostics.sh` in your editor.
+2. Replace `your_student_id@students.jkuat.ac.ke` and `your_password` with your real credentials.
+3. Run the script with `sudo ./claude_diagnostics.sh`.
+4. The script will output raw connection logs. Once finished, **remember to revert the script back to placeholder credentials** so you do not accidentally commit your password!
 
 ## How to Set It Up
 

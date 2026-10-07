@@ -13,8 +13,8 @@ cat <<'INNER_EOF' > /var/lib/iwd/eduroam.8021x
 EAP-Method=PEAP
 EAP-Identity=anonymous@jkuat.ac.ke
 EAP-PEAP-Phase2-Method=MSCHAPV2
-EAP-PEAP-Phase2-Identity=vincent.kimani2024@students.jkuat.ac.ke
-EAP-PEAP-Phase2-Password=sct222-0131/2024
+EAP-PEAP-Phase2-Identity=your_student_id@students.jkuat.ac.ke
+EAP-PEAP-Phase2-Password=your_password
 INNER_EOF
 
 chown root:root /var/lib/iwd/eduroam.8021x
