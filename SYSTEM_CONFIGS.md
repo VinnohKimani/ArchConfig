@@ -477,3 +477,21 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 - **Undo:** Re-add `wifi.backend=iwd` to `/etc/NetworkManager/conf.d/iwd.conf`, disable `wpa_supplicant`, and enable `iwd.service`.
 
 ---
+
+# 🎨 3D Modeling & Animation (Autodesk Maya)
+
+## Custom PKGBUILD Setup
+A custom `PKGBUILD_maya` has been added to this repository to cleanly handle the installation of Autodesk Maya 2027 on Arch Linux. Maya is officially built for RPM-based distributions (like RHEL/Fedora), so this PKGBUILD automatically extracts the RPM, patches the launch script, fixes library paths (like `libmd.so`), and correctly places the `.desktop` files into the system directory.
+
+**Prerequisites & Dependencies:**
+The PKGBUILD automatically pulls in a massive list of dependencies required for Maya to run on X11/Wayland (including `wayland`, `libx11`, `alsa-lib`, and several `xcb-util` packages). Crucially, it forces the installation of `xorg-fonts-100dpi` and `xorg-fonts-75dpi` to prevent severe font rendering errors and crashes inside the Maya UI.
+
+**Installation Instructions:**
+Because Maya is a commercial product, you must manually supply the source RPM file in the same directory as the PKGBUILD before building.
+
+1. Download the official `Maya2027_64-2027.2-1839.x86_64.rpm` file from Autodesk.
+2. Ensure you have the `application-home-workaround.patch` file in the same directory.
+3. Rename the script for `makepkg`: `cp PKGBUILD_maya PKGBUILD`
+4. Build and install: `makepkg -si`
+
+---
