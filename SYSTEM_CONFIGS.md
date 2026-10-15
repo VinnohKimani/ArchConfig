@@ -495,3 +495,93 @@ Because Maya is a commercial product, you must manually supply the source RPM fi
 4. Build and install: `makepkg -si`
 
 ---
+
+# 🖱️ Trackpad & Wayland Hardware Acceleration
+
+## Touchpad Gesture & Scroll Calibration (Hyprland)
+
+### Configuration
+In `~/.config/hypr/userprefs.conf`:
+```ini
+input {
+    sensitivity = 0.5
+
+    touchpad {
+        natural_scroll = true
+        tap-to-click = true
+        scroll_factor = 1.0
+        clickfinger_behavior = true
+        tap-and-drag = false
+    }
+}
+```
+- **`scroll_factor = 1.0`**: Provides 1:1 hardware scroll response (prevents artificial sluggishness while keeping natural scrolling direction).
+- **`sensitivity = 0.5`**: Maintains accurate pointer control on high-DPI Retina screens without overshoot.
+
+---
+
+## Brave / Chromium Wayland Flags & Gesture Zoom
+
+### Problem
+On Wayland compositors (Hyprland), Chromium-based browsers without explicit Wayland Ozone flags fall back to XWayland or emit discrete mouse wheel steps for pinch gestures.
+- **Symptom 1 ("Page Expands"):** Two-finger pinching triggers browser-level Page Zoom (`Ctrl + Plus/Minus`), blowing up all text, navigation bars, and window layouts.
+- **Symptom 2 ("Slow Motion Zoom"):** On canvas/3D web applications (like Stitch, Figma, Google Maps), stepped DOM zoom forces full layout reflows on the 2560x1600 Retina display, causing severe GPU stutter and sluggish "slow-motion" response.
+
+### Resolution
+Create `~/.config/brave-flags.conf` (automatically read by `/usr/bin/brave`):
+```text
+--ozone-platform-hint=auto
+--enable-features=TouchpadOzonePinch,TouchpadOverscrollHistoryNavigation
+--enable-gpu-rasterization
+--enable-zero-copy
+--ignore-gpu-blocklist
+--password-store=gnome-libsecret
+```
+- **`--ozone-platform-hint=auto`**: Enforces native Wayland rendering.
+- **`TouchpadOzonePinch`**: Enables hardware pinch-to-zoom events directly on the viewport without mutating the browser UI zoom level.
+- **`--enable-gpu-rasterization` & `--enable-zero-copy`**: Offloads 2D/3D canvas and page composite rendering to the Intel Iris GPU.
+
+---
+
+# 🧹 Storage Hygiene & Maintenance Protocol (92GB SSD)
+
+## Disk Budget & High-Impact Targets
+
+On a 92GB drive, package caches and temporary build staging directories quickly lead to storage starvation:
+
+| Target Directory / Resource | Description | Safe Clean Command |
+| :--- | :--- | :--- |
+| `~/Downloads/maya/pkg` | Maya `makepkg` staging directory (~8GB) | `rm -rf ~/Downloads/maya/pkg` (Maya is already installed in `/usr/autodesk`) |
+| `/var/cache/pacman/pkg` | Pacman downloaded archives | `sudo pacman -Sc` or `paccache -r` |
+| `~/.cache/yay` | AUR build cache & git objects | `rm -rf ~/.cache/yay/*` |
+| `~/.cache/.bun`, `~/.cache/uv` | Developer runtime package caches | `rm -rf ~/.cache/.bun/* ~/.cache/uv/*` |
+| `/var/log/journal` | Systemd archived journal logs | `sudo journalctl --vacuum-size=100M` |
+| `~/.cache/BraveSoftware` | Browser web & shader cache (~3GB) | Clear via Brave Settings > Clear Browsing Data |
+
+## Unnecessary Package Auditing
+
+### Orphan Packages
+Orphaned dependencies that were pulled in during compilation and are no longer required by any installed package:
+```bash
+# Check orphans:
+pacman -Qdtq
+
+# Safely remove all orphans:
+sudo pacman -Rns $(pacman -Qdtq)
+```
+
+### Detached Debug Symbols (`*-debug`)
+AUR packages frequently install detached debug symbols that consume hundreds of megabytes without providing end-user utility:
+```bash
+# Check installed debug packages:
+pacman -Qq | grep -- -debug
+
+# Clean debug packages:
+sudo pacman -Rns $(pacman -Qq | grep -- -debug)
+```
+
+### Hardware Firmware Hygiene
+MacBook Pro 2015 uses Intel Iris GT3 graphics. Non-applicable firmware packages (such as `linux-firmware-nvidia`) can be removed to free disk space:
+```bash
+sudo pacman -R linux-firmware-nvidia
+```
