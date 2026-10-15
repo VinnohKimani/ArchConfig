@@ -60,6 +60,16 @@ yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git g
 If a large AUR package (like Brave or an IDE) finishes building but fails to install with a `sudo: timed out reading password` error, it means the compilation took longer than the default `sudo` timeout. 
 - **Fix:** Simply rerun the install command (`yay -Syu`). The packages are already cached locally (`~/.cache/yay/`), so it will skip compilation and instantly prompt for the password to install.
 
+### Preventing Lengthy Source Compilations in yay (`IgnorePkg`)
+Certain legacy dependencies pulled from the AUR (such as `openssl-1.1` for Autodesk Maya licensing, or `webkit2gtk`) are distributed as source packages. Whenever a minor AUR revision is released, `yay -Syu` will attempt to recompile the entire C library and test suite from scratch, consuming 15+ minutes of heavy CPU usage and spamming `gcc` build logs.
+
+To prevent `yay` and `pacman` from constantly recompiling these static legacy libraries:
+1. Ensure they are listed in `/etc/pacman.conf` under the `[options]` section:
+   ```ini
+   IgnorePkg = adp-desktop-sdk adskidentitymanager adsklicensing webkit2gtk openssl-1.1
+   ```
+2. `yay` will automatically respect this configuration and skip recompiling them during daily `yay -Syu` upgrades.
+
 ---
 
 
