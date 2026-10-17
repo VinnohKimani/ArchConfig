@@ -569,6 +569,66 @@ Because Maya is a commercial product, you must manually supply the source RPM fi
 
 ---
 
+## On-Demand Autodesk Licensing Daemon (RAM Preservation)
+
+### Problem
+The Autodesk Licensing Service (`adsklicensing.service`) was enabled on boot, continuously running in the background and consuming memory (~25-50MB RSS) even when Maya was not in use.
+
+### Resolution
+1. **Disabled at Boot:**
+   ```bash
+   sudo systemctl disable adsklicensing.service
+   ```
+2. **Passwordless Control (`/etc/sudoers.d/adsklicensing`):**
+   ```text
+   vinnoh ALL=(ALL) NOPASSWD: /usr/bin/systemctl start adsklicensing.service, /usr/bin/systemctl stop adsklicensing.service, /usr/bin/systemctl restart adsklicensing.service, /usr/bin/systemctl is-active adsklicensing.service
+   ```
+3. **Automated Lifecycle Wrapper in `/usr/autodesk/maya2027/bin/maya2027`:**
+   Injected a startup trigger and shell trap to manage the service strictly during the Maya process lifespan:
+   ```bash
+   if command -v systemctl >/dev/null 2>&1; then
+       sudo -n systemctl start adsklicensing.service 2>/dev/null
+       trap 'sudo -n systemctl stop adsklicensing.service 2>/dev/null' EXIT INT TERM
+   fi
+   ```
+
+---
+
+## Wayland Environment & Qt Compatibility
+
+### Symptoms
+When launched under Hyprland, Maya crashed immediately during splash screen initialization with:
+```text
+qt.qpa.plugin: Could not load the Qt platform plugin "wayland" in "" even though it was found.
+```
+
+### Root Cause
+Hyprland exports `QT_QPA_PLATFORM=wayland;xcb`. Maya bundles its own custom Qt 6 runtime that lacks functional Wayland platform integration, causing a segmentation fault when probing Wayland libraries.
+
+### Resolution
+Enforced `export QT_QPA_PLATFORM=xcb` in both `~/maya/2027/Maya.env` and the `/usr/autodesk/maya2027/bin/maya2027` launch script to guarantee XWayland execution. Removed hardcoded `DISPLAY=:1` from `Maya.env` so Maya dynamically inherits the active XWayland display.
+
+---
+
+## Instant Shape Creation (Disabling Interactive Creation)
+
+### Symptoms
+Clicking to create primitive shapes (like `Create -> Polygon Primitives -> Sphere` or clicking Sphere/Cube on the shelf) resulted in nothing appearing in the viewport, making it appear that Maya is unresponsive or refusing to create geometry.
+
+### Root Cause
+Autodesk Maya enables **Interactive Creation** (`createPolyPrimitiveAsTool = 1`) by default. In this mode, clicking a shape does not generate an object; instead, Maya enters a tool context and waits for the user to click and drag across the viewport grid to draw the base and height manually.
+
+### Resolution
+Created `~/maya/2027/scripts/userSetup.mel` to automatically disable interactive tool creation upon Maya launch:
+```mel
+// Auto-generated: Disable interactive primitive creation in Maya 2027
+// Shapes (Polygon & NURBS primitives) will spawn instantly on click at origin (0, 0, 0)
+evalDeferred("optionVar -intValue createPolyPrimitiveAsTool 0; optionVar -intValue createNurbsPrimitiveAsTool 0;");
+```
+Clicking any polygon or NURBS shape now immediately generates the object at the origin `(0, 0, 0)`.
+
+---
+
 # 🖱️ Trackpad & Wayland Hardware Acceleration
 
 ## Touchpad Gesture & Scroll Calibration (Hyprland)
