@@ -26,7 +26,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-6)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-7)
 ├── PKGBUILD_maya              # Custom PKGBUILD for Autodesk Maya 2027 RPM extraction & install
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
@@ -80,12 +80,17 @@ Arch-Configs/
   3. Configured `~/maya/2027/Maya.env` with `MAYA_VP2_DEVICE_OVERRIDE=VirtualDeviceGL` and `__GLX_VENDOR_LIBRARY_NAME=mesa` to force stable OpenGL Viewport rendering.
   4. Added `adsklicensing`, `webkit2gtk`, and `openssl-1.1` to `IgnorePkg` in `/etc/pacman.conf` to prevent `yay` from recompiling legacy C libraries on daily updates.
 
-### 5. Storage Hygiene Protocol (92GB SSD)
+### 5. Storage Hygiene & Dual-Boot Expansion Protocol
 - System storage is maintained through a strict budget:
   - Pacman cache pruned with `pacman -Sc` / `paccache -r`.
   - Systemd journals capped at 100MB with `journalctl --vacuum-size=100M`.
   - Staging builds in `~/Downloads/maya/pkg` and unneeded debug symbols (`*-debug`) pruned periodically.
+- **Dual-Boot Expansion (Option A):** Documented the safest path to reclaim storage from macOS Sequoia. Shrinking the APFS container in macOS creates free space before the Arch partition, which is formatted as `/dev/sda4` and mounted as extra data storage without modifying existing root filesystem sectors.
   - Full protocol documented in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
+
+### 6. Power Button Protection & Sleep/Wake Optimization
+- **Power Button:** Configured `/etc/systemd/logind.conf.d/ignore-power-key.conf` (`HandlePowerKey=ignore`) to protect against accidental shutdowns from keyboard brush hits.
+- **Sleep/Wake Latency:** Enabled SPI ACPI wakeup (`SPIT`) via `macbook-wakeup.service` for instant keyboard/trackpad wake, and disabled Bluetooth autosuspend (`btusb.enable_autosuspend=n`) to eliminate 15-second resume hangs (error -110).
 
 ---
 
@@ -93,5 +98,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, Maya installation, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 6).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 7).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.
