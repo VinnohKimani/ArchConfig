@@ -27,7 +27,6 @@ Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
 ├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-8)
-├── PKGBUILD_maya              # Custom PKGBUILD for Autodesk Maya 2027 RPM extraction & install
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
@@ -72,24 +71,15 @@ Arch-Configs/
   1. Created `~/.config/brave-flags.conf` with `--ozone-platform-hint=auto` and `--enable-features=TouchpadOzonePinch,TouchpadOverscrollHistoryNavigation` for 1:1 smooth hardware pinch zoom.
   2. Adjusted `scroll_factor = 1.0` in `~/.config/hypr/userprefs.conf`.
 
-### 4. Autodesk Maya 2027 Integration
-- **Problem:** Maya 2027 is built for enterprise RPM distributions (RHEL/CentOS). On Arch Linux, it failed to start due to library mismatches (`libjbig.so.2.1`), and Viewport 2.0 rendered black/frozen screens on Wayland/Mesa.
-- **Resolution:**
-  1. Custom [PKGBUILD_maya](PKGBUILD_maya) extracts RPM payloads, patches startup scripts, and links dependencies (`libxml2.so.2`, `xorg-fonts`).
-  2. Symlinked `/usr/lib/libjbig.so.2.2` → `/usr/autodesk/maya2027/lib/libjbig.so.2.1` to resolve Arch's `jbigkit 2.2` soname bump.
-  3. Configured `~/maya/2027/Maya.env` with `MAYA_VP2_DEVICE_OVERRIDE=VirtualDeviceGL` and `__GLX_VENDOR_LIBRARY_NAME=mesa` to force stable OpenGL Viewport rendering.
-  4. Added `adsklicensing`, `webkit2gtk`, and `openssl-1.1` to `IgnorePkg` in `/etc/pacman.conf` to prevent `yay` from recompiling legacy C libraries on daily updates.
-  5. **Instant Shape Creation & On-Demand Licensing:** Created `~/maya/2027/scripts/userSetup.mel` to disable "Interactive Creation" so shapes (Cube, Sphere, etc.) spawn immediately upon click. Configured `adsklicensing.service` to run on-demand only while Maya is open (saving baseline RAM), and enforced `QT_QPA_PLATFORM=xcb` to prevent Wayland startup crashes.
-
-### 5. Storage Hygiene & Dual-Boot Expansion Protocol
+### 4. Storage Hygiene & Dual-Boot Expansion Protocol
 - System storage is maintained through a strict budget:
   - Pacman cache pruned with `pacman -Sc` / `paccache -r`.
   - Systemd journals capped at 100MB with `journalctl --vacuum-size=100M`.
-  - Staging builds in `~/Downloads/maya/pkg` and unneeded debug symbols (`*-debug`) pruned periodically.
+  - Unneeded debug symbols (`*-debug`) pruned periodically.
 - **Dual-Boot Expansion (Option A):** Documented the safest path to reclaim storage from macOS Sequoia. Shrinking the APFS container in macOS creates free space before the Arch partition, which is formatted as `/dev/sda4` and mounted as extra data storage without modifying existing root filesystem sectors.
   - Full protocol documented in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
 
-### 6. Power Button Protection & Sleep/Wake Optimization
+### 5. Power Button Protection & Sleep/Wake Optimization
 - **Power Button:** Configured `/etc/systemd/logind.conf.d/ignore-power-key.conf` (`HandlePowerKey=ignore`) to protect against accidental shutdowns from keyboard brush hits.
 - **Sleep/Wake Latency:** Enabled SPI ACPI wakeup (`SPIT`) via `macbook-wakeup.service` for instant keyboard/trackpad wake, and disabled Bluetooth autosuspend (`btusb.enable_autosuspend=n`) to eliminate 15-second resume hangs (error -110).
 
@@ -98,6 +88,6 @@ Arch-Configs/
 ## 📖 In-Depth Documentation Index
 
 For complete step-by-step guides, configs, and architectural explanations:
-* **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, Maya installation, and storage maintenance.
+* **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
 * **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 8).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.
