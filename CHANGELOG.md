@@ -35,10 +35,12 @@
   - **Broadcom Bluetooth Sleep Timeout (Error -110)**: Identified Broadcom Bluetooth (`05ac:8290` / `btusb`) failing suspend with `error -110` (ETIMEDOUT) and stalling system resume for 15+ seconds. Created `/etc/modprobe.d/btusb.conf` with `options btusb enable_autosuspend=n` to eliminate the autosuspend timeout loop.
 - **Dual-Boot Storage Expansion Protocol (Option A)**:
   - Formulated and documented Option A to expand storage on the dual-boot system with macOS Sequoia. Shrinking the APFS container (`sda2`) from macOS creates unallocated space before Arch Linux (`sda3`), which can be safely partitioned as `/dev/sda4` and mounted for extra storage without risking the root filesystem.
-
-## Phase 8: Maya Instant Shape Creation & On-Demand Licensing Architecture
-- **On-Demand Licensing Daemon**: Disabled `adsklicensing.service` on boot to conserve RAM. Configured `/etc/sudoers.d/adsklicensing` for passwordless lifecycle control and injected shell traps into `/usr/autodesk/maya2027/bin/maya2027` so the licensing daemon starts automatically only when Maya launches and terminates upon Maya exit.
-- **Wayland / XCB Crash Resolution**: Enforced `QT_QPA_PLATFORM=xcb` in `~/maya/2027/Maya.env` and the launcher script, preventing segmentation faults caused by Hyprland's `wayland;xcb` environment conflicting with Maya's bundled Qt libraries. Removed static `DISPLAY=:1` to support dynamic XWayland display allocation.
-- **Instant Shape Creation Fix**: Identified that Maya default settings enable "Interactive Creation" (`createPolyPrimitiveAsTool = 1`), causing single-clicks on Sphere/Cube to appear unresponsive while Maya waits for an interactive viewport drag. Created `~/maya/2027/scripts/userSetup.mel` to disable interactive creation on startup, ensuring shapes spawn instantly at origin on single click.
-
-
+## Phase 8: Autodesk Maya Decommissioning & Massive Storage Recovery
+- **Package & Dependency Purge**: Uninstalled `maya 2027.2-1`, `adsklicensing`, `adskidentitymanager`, `adp-desktop-sdk`, `libtiff5`, `openssl-1.1`, `webkit2gtk`, and legacy `libsoup` using `pacman -Rns`. Removed orphaned build helper `chrpath`.
+- **System Cleanup & Configuration Reversion**:
+  - Cleaned `/etc/pacman.conf` by resetting `#IgnorePkg =` to defaults.
+  - Removed passwordless sudo rule `/etc/sudoers.d/adsklicensing`.
+  - Removed floating window rules for Maya and Autodesk Identity Manager from `~/.config/hypr/windowrules.conf`.
+  - Removed Autodesk MIME scheme handlers from `~/.config/mimeapps.list`.
+  - Removed legacy symlink `/usr/lib/libjbig.so.2.1`.
+- **Storage Reclaim (+22.2 GB)**: Deleted 14GB of RPMs and staging builds in `~/Downloads/maya`, unpacked resources in `~/Downloads/SetupRes` and `~/Downloads/manifest`, all user preferences and environments in `~/maya`, and application roots in `/usr/autodesk` and `/opt/Autodesk`. Dropped root disk usage from 89% (9.8GB free) to 64% (32GB free).
