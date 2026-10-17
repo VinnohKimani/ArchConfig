@@ -125,6 +125,69 @@ This is a **hardware limitation**. Software configuration cannot prevent voltage
 
 ---
 
+## Power Button Protection (Accidental Shutdown Prevention)
+
+### Symptoms
+Accidentally brushing or pressing the physical power key on the MacBook Pro keyboard instantly triggered system shutdown or power-off dialogs while working.
+
+### Root Cause
+By default, `systemd-logind` maps the power button (`HandlePowerKey`) to `poweroff`. Because the power key on the MacBook Pro 2015 is placed immediately next to the `Delete` key on the top-right corner of the keyboard, accidental key presses frequently cause unwanted shutdowns.
+
+### Resolution
+Configured a clean systemd drop-in to completely ignore both short taps and long software presses of the power button:
+- **File Created:** `/etc/systemd/logind.conf.d/ignore-power-key.conf`
+  ```ini
+  [Login]
+  HandlePowerKey=ignore
+  HandlePowerKeyLongPress=ignore
+  ```
+- **Live Apply:** Reloaded `systemd-logind` configuration without terminating user sessions:
+  ```bash
+  sudo kill -s HUP $(pidof systemd-logind)
+  ```
+- **Hardware Emergency Fallback:** Holding down the physical power button for 7–10 seconds triggers a forced hardware-level cutoff managed by the Apple SMC chip, ensuring emergency recovery remains functional if the OS ever freezes.
+
+---
+
+## Sleep & Resume Latency Fixes (SPI Wake & Bluetooth Autosuspend)
+
+### Symptoms
+1. **Inability to Wake with Keyboard / Trackpad:** When the MacBook was suspended/asleep, typing on the keyboard or tapping the trackpad failed to wake the machine. Only pressing the power button could trigger a wake event.
+2. **Prolonged Wakeup Delay (15+ Seconds):** After pressing the power button to wake from sleep, the machine hung with a black screen for 10–15 seconds before the display and session resumed.
+
+### Root Causes
+1. **SPI ACPI Wake Disabled (`SPIT`):** On the MacBookPro12,1 (Early 2015 Retina 13"), the internal keyboard and trackpad communicate via an Apple SPI bus (`applespi` driver, device `spi-APP000D:00`). In `/proc/acpi/wakeup`, the `SPIT` device node was flagged `*disabled`, preventing keyboard/trackpad events from waking the system out of S3 sleep.
+2. **Broadcom Bluetooth Autosuspend Timeout (`error -110`):** The built-in Broadcom Bluetooth controller (`05ac:8290` / `btusb` module) failed to negotiate low-power USB autosuspend states during sleep transitions, logging `usb 1-3: Failed to suspend device, error -110` (ETIMEDOUT). During wake, the kernel blocked for ~15 seconds waiting for the USB device before forcing a bus reset (`usb 1-3: reset full-speed USB device number 2 using xhci_hcd`).
+
+### Resolutions
+1. **Disabled `btusb` Autosuspend:**
+   Created `/etc/modprobe.d/btusb.conf` to disable power-saving autosuspend on the Broadcom Bluetooth controller:
+   ```ini
+   options btusb enable_autosuspend=n
+   ```
+2. **Automated SPI Wakeup Service:**
+   Created a persistent systemd service `/etc/systemd/system/macbook-wakeup.service` to ensure `SPIT` is automatically enabled in `/proc/acpi/wakeup` at boot:
+   ```ini
+   [Unit]
+   Description=Enable SPI keyboard/trackpad wakeup for MacBookPro12,1
+   After=multi-user.target
+
+   [Service]
+   Type=oneshot
+   ExecStart=/bin/sh -c "if grep -q 'SPIT.*disabled' /proc/acpi/wakeup; then echo SPIT > /proc/acpi/wakeup; fi"
+   RemainAfterExit=yes
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Enabled and started via:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now macbook-wakeup.service
+   ```
+
+---
+
 
 # ⌨️ Input Devices
 
@@ -595,3 +658,81 @@ MacBook Pro 2015 uses Intel Iris GT3 graphics. Non-applicable firmware packages 
 ```bash
 sudo pacman -R linux-firmware-nvidia
 ```
+
+---
+
+# 💾 Dual-Boot Storage Expansion (macOS Sequoia & Arch Linux)
+
+## Partition Layout & Storage Constraints
+
+The internal 512GB Apple SSD (`/dev/sda`) is partitioned as follows:
+- `/dev/sda1` (200MB): EFI System Partition (bootloader / ESP).
+- `/dev/sda2` (~400GB): Apple APFS Container hosting macOS Sequoia (`apfs`).
+- `/dev/sda3` (~100GB): Arch Linux root filesystem (`ext4`, mounted at `/`, ~89% full).
+
+### Technical Limitations
+1. **APFS Resizing in Linux:** The Linux kernel and open-source userspace tools cannot safely resize or shrink Apple APFS containers. Shrinking the APFS container **must** be executed from within macOS Sequoia.
+2. **Partition Geometry:** Because `/dev/sda3` (Arch) sits at the very end of the physical drive (sectors `780931072` to `977104895`), shrinking `/dev/sda2` creates unallocated space **between** `sda2` and `sda3`:
+   ```text
+   [ sda1 (EFI) ] [ sda2 (macOS APFS shrunk) ] [ FREE SPACE GAP ] [ sda3 (Arch root) ]
+   ```
+3. To expand `sda3` directly, `sda3` would have to be physically moved to the left, which requires booting into a live USB and moving ~92GB of filesystem blocks.
+
+---
+
+## Option A: Dedicated Secondary Data Partition (Recommended)
+
+Option A creates a new standalone partition (`/dev/sda4`) inside the freed space gap without moving the root partition, eliminating risk to the existing Arch installation.
+
+### Step-by-Step Procedure
+
+#### Phase 1: Shrink macOS APFS Container in macOS Sequoia
+1. Restart your MacBook and hold `Option` (Alt) to boot into macOS Sequoia.
+2. Open **Terminal** in macOS.
+3. Check your disk identifiers:
+   ```bash
+   diskutil list
+   ```
+   Identify your APFS container (usually `disk0s2`).
+4. Shrink the container to your desired target size (for example, shrinking from 400GB to 300GB to liberate 100GB of space):
+   ```bash
+   sudo diskutil apfs resizeContainer disk0s2 300g
+   ```
+5. Confirm the resize completes successfully, then restart and boot back into **Arch Linux**.
+
+#### Phase 2: Create and Format the New Partition in Arch Linux
+1. Verify the unallocated space using `parted`:
+   ```bash
+   sudo parted /dev/sda print free
+   ```
+2. Create partition `/dev/sda4` using `fdisk`:
+   ```bash
+   sudo fdisk /dev/sda
+   # Press 'n' to add a new partition (Partition number 4, accept default start and end sectors)
+   # Press 'w' to write the partition table and exit.
+   ```
+3. Format the new partition as `ext4`:
+   ```bash
+   sudo mkfs.ext4 -L Storage /dev/sda4
+   ```
+
+#### Phase 3: Mount and Automate in `/etc/fstab`
+1. Create a mount point in your home directory (or wherever preferred):
+   ```bash
+   mkdir -p ~/Storage
+   ```
+2. Obtain the UUID of `/dev/sda4`:
+   ```bash
+   sudo blkid /dev/sda4
+   ```
+3. Add the mount entry to `/etc/fstab` (replace `<UUID>` with your actual UUID):
+   ```text
+   UUID=<UUID>  /home/vinnoh/Storage  ext4  defaults,noatime  0  2
+   ```
+4. Mount and set ownership:
+   ```bash
+   sudo mount -a
+   sudo chown -R vinnoh:vinnoh ~/Storage
+   ```
+5. You can now store large development files, Docker volumes, Maya project files, or Steam games on `~/Storage`, completely relieving the 92GB root partition.
+
