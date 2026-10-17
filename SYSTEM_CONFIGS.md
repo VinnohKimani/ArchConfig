@@ -551,83 +551,6 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 
 ---
 
-# 🎨 3D Modeling & Animation (Autodesk Maya)
-
-## Custom PKGBUILD Setup
-A custom `PKGBUILD_maya` has been added to this repository to cleanly handle the installation of Autodesk Maya 2027 on Arch Linux. Maya is officially built for RPM-based distributions (like RHEL/Fedora), so this PKGBUILD automatically extracts the RPM, patches the launch script, fixes library paths (like `libmd.so`), and correctly places the `.desktop` files into the system directory.
-
-**Prerequisites & Dependencies:**
-The PKGBUILD automatically pulls in a massive list of dependencies required for Maya to run on X11/Wayland (including `wayland`, `libx11`, `alsa-lib`, and several `xcb-util` packages). Crucially, it forces the installation of `xorg-fonts-100dpi` and `xorg-fonts-75dpi` to prevent severe font rendering errors and crashes inside the Maya UI.
-
-**Installation Instructions:**
-Because Maya is a commercial product, you must manually supply the source RPM file in the same directory as the PKGBUILD before building.
-
-1. Download the official `Maya2027_64-2027.2-1839.x86_64.rpm` file from Autodesk.
-2. Ensure you have the `application-home-workaround.patch` file in the same directory.
-3. Rename the script for `makepkg`: `cp PKGBUILD_maya PKGBUILD`
-4. Build and install: `makepkg -si`
-
----
-
-## On-Demand Autodesk Licensing Daemon (RAM Preservation)
-
-### Problem
-The Autodesk Licensing Service (`adsklicensing.service`) was enabled on boot, continuously running in the background and consuming memory (~25-50MB RSS) even when Maya was not in use.
-
-### Resolution
-1. **Disabled at Boot:**
-   ```bash
-   sudo systemctl disable adsklicensing.service
-   ```
-2. **Passwordless Control (`/etc/sudoers.d/adsklicensing`):**
-   ```text
-   vinnoh ALL=(ALL) NOPASSWD: /usr/bin/systemctl start adsklicensing.service, /usr/bin/systemctl stop adsklicensing.service, /usr/bin/systemctl restart adsklicensing.service, /usr/bin/systemctl is-active adsklicensing.service
-   ```
-3. **Automated Lifecycle Wrapper in `/usr/autodesk/maya2027/bin/maya2027`:**
-   Injected a startup trigger and shell trap to manage the service strictly during the Maya process lifespan:
-   ```bash
-   if command -v systemctl >/dev/null 2>&1; then
-       sudo -n systemctl start adsklicensing.service 2>/dev/null
-       trap 'sudo -n systemctl stop adsklicensing.service 2>/dev/null' EXIT INT TERM
-   fi
-   ```
-
----
-
-## Wayland Environment & Qt Compatibility
-
-### Symptoms
-When launched under Hyprland, Maya crashed immediately during splash screen initialization with:
-```text
-qt.qpa.plugin: Could not load the Qt platform plugin "wayland" in "" even though it was found.
-```
-
-### Root Cause
-Hyprland exports `QT_QPA_PLATFORM=wayland;xcb`. Maya bundles its own custom Qt 6 runtime that lacks functional Wayland platform integration, causing a segmentation fault when probing Wayland libraries.
-
-### Resolution
-Enforced `export QT_QPA_PLATFORM=xcb` in both `~/maya/2027/Maya.env` and the `/usr/autodesk/maya2027/bin/maya2027` launch script to guarantee XWayland execution. Removed hardcoded `DISPLAY=:1` from `Maya.env` so Maya dynamically inherits the active XWayland display.
-
----
-
-## Instant Shape Creation (Disabling Interactive Creation)
-
-### Symptoms
-Clicking to create primitive shapes (like `Create -> Polygon Primitives -> Sphere` or clicking Sphere/Cube on the shelf) resulted in nothing appearing in the viewport, making it appear that Maya is unresponsive or refusing to create geometry.
-
-### Root Cause
-Autodesk Maya enables **Interactive Creation** (`createPolyPrimitiveAsTool = 1`) by default. In this mode, clicking a shape does not generate an object; instead, Maya enters a tool context and waits for the user to click and drag across the viewport grid to draw the base and height manually.
-
-### Resolution
-Created `~/maya/2027/scripts/userSetup.mel` to automatically disable interactive tool creation upon Maya launch:
-```mel
-// Auto-generated: Disable interactive primitive creation in Maya 2027
-// Shapes (Polygon & NURBS primitives) will spawn instantly on click at origin (0, 0, 0)
-evalDeferred("optionVar -intValue createPolyPrimitiveAsTool 0; optionVar -intValue createNurbsPrimitiveAsTool 0;");
-```
-Clicking any polygon or NURBS shape now immediately generates the object at the origin `(0, 0, 0)`.
-
----
 
 # 🖱️ Trackpad & Wayland Hardware Acceleration
 
@@ -684,7 +607,6 @@ On a 92GB drive, package caches and temporary build staging directories quickly 
 
 | Target Directory / Resource | Description | Safe Clean Command |
 | :--- | :--- | :--- |
-| `~/Downloads/maya/pkg` | Maya `makepkg` staging directory (~8GB) | `rm -rf ~/Downloads/maya/pkg` (Maya is already installed in `/usr/autodesk`) |
 | `/var/cache/pacman/pkg` | Pacman downloaded archives | `sudo pacman -Sc` or `paccache -r` |
 | `~/.cache/yay` | AUR build cache & git objects | `rm -rf ~/.cache/yay/*` |
 | `~/.cache/.bun`, `~/.cache/uv` | Developer runtime package caches | `rm -rf ~/.cache/.bun/* ~/.cache/uv/*` |
@@ -794,5 +716,5 @@ Option A creates a new standalone partition (`/dev/sda4`) inside the freed space
    sudo mount -a
    sudo chown -R vinnoh:vinnoh ~/Storage
    ```
-5. You can now store large development files, Docker volumes, Maya project files, or Steam games on `~/Storage`, completely relieving the 92GB root partition.
+5. You can now store large development files, Docker volumes, or Steam games on `~/Storage`, completely relieving the 92GB root partition.
 
