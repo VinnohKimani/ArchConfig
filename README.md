@@ -26,7 +26,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-7)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-8)
 ├── PKGBUILD_maya              # Custom PKGBUILD for Autodesk Maya 2027 RPM extraction & install
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
@@ -79,6 +79,7 @@ Arch-Configs/
   2. Symlinked `/usr/lib/libjbig.so.2.2` → `/usr/autodesk/maya2027/lib/libjbig.so.2.1` to resolve Arch's `jbigkit 2.2` soname bump.
   3. Configured `~/maya/2027/Maya.env` with `MAYA_VP2_DEVICE_OVERRIDE=VirtualDeviceGL` and `__GLX_VENDOR_LIBRARY_NAME=mesa` to force stable OpenGL Viewport rendering.
   4. Added `adsklicensing`, `webkit2gtk`, and `openssl-1.1` to `IgnorePkg` in `/etc/pacman.conf` to prevent `yay` from recompiling legacy C libraries on daily updates.
+  5. **Instant Shape Creation & On-Demand Licensing:** Created `~/maya/2027/scripts/userSetup.mel` to disable "Interactive Creation" so shapes (Cube, Sphere, etc.) spawn immediately upon click. Configured `adsklicensing.service` to run on-demand only while Maya is open (saving baseline RAM), and enforced `QT_QPA_PLATFORM=xcb` to prevent Wayland startup crashes.
 
 ### 5. Storage Hygiene & Dual-Boot Expansion Protocol
 - System storage is maintained through a strict budget:
@@ -98,5 +99,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, Maya installation, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 7).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 8).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.
