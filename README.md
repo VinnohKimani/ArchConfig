@@ -32,7 +32,7 @@ Arch-Configs/
 ├── user-style.css             # Custom desktop & panel CSS overrides
 ├── hypridle.conf              # Screen dim, lock screen, DPMS, and safe-suspend listeners
 ├── kbd_brightnesscontrol.sh   # SMC keyboard backlight increment/decrement helper script
-├── battery-monitor.sh         # ADP1 AC-pin watcher (notify only, never suspends)
+├── battery-monitor.sh         # Event-driven ADP1 watcher, 250ms fallback (notify only, never suspends)
 ├── battery-notify.sh          # Charger/battery notification script (notify only)
 ├── safe-suspend.sh            # Guarded suspend wrapper, the only path to S3
 ├── battery-fix.sh             # Finds/disarms the old countdown notifier and installs the trio
@@ -67,7 +67,7 @@ Arch-Configs/
   1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 25% and unplugged, suspend is prevented and a critical warning notification is sent. It fails safe: an unreadable or unstable reading also blocks the suspend.
   2. Integrated into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch). It is the **only** path to S3 — no config calls `systemctl suspend` directly.
   3. Calibrated UPower thresholds in `/etc/UPower/UPower.conf` (`PercentageCritical=5`, `PercentageAction=2`).
-  4. **Regression fixed (Oct 2026):** removing the charger used to put the laptop to sleep. The notification script derived the level from `energy_now / energy_full_design` (~22% on a 33% health battery) and its "critical battery" branch suspended the machine on every unplug. Now [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity`, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) is event-driven: it wakes on kernel `power_supply` uevents with a 250ms `ADP1/online` fallback tick, so plug/unplug notifications land instantly. Details in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#battery-charger-unplug-suspend-regression).
+  4. **Regression fixed (Oct 2026):** removing the charger used to put the laptop to sleep. The notification script derived the level from `energy_now / energy_full_design` (~22% on a 33% health battery) and its "critical battery" branch suspended the machine on every unplug. Now [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity`, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) is event-driven: it wakes on kernel `power_supply` uevents with a 250ms `ADP1/online` fallback tick, so plug/unplug notifications land instantly (measured 80 ms unplug / 262 ms plug on the fallback path). Design, latency budget, tuning knobs and troubleshooting in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#realtime-charger-plugunplug-notifications).
   5. **Cleaning up an existing machine:** a second, older notifier can still be installed and running — its popup reads "43% is critically low. Device will execute systemctl suspend in 1:56". Run `./battery-fix.sh --dry-run` to see whether it is present, then `./battery-fix.sh` to disarm it and install the fixed trio. See [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#a-second-notifier-can-survive-the-fix-the-countdown-banner).
 
 ### 3. Trackpad Calibration & Wayland Browser Acceleration

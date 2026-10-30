@@ -86,9 +86,9 @@ If you install static legacy packages from the AUR that you do not want `yay` to
 - **Waybar/DBus Polling:** Waybar and the `batterynotify.sh` script were strictly watching the lagging battery state instead of the instantaneously updating AC adapter pin state (`ADP1`).
 
 ### Resolutions
-1. **Instant Charger Detection (udevadm):** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. Created a custom active daemon (`~/.local/bin/battery-monitor.sh`) that uses `udevadm monitor -s power_supply` to instantly detect charger plug/unplug events and immediately trigger the notification script. This daemon is launched on boot via `~/.config/hypr/userprefs.conf`.
-2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications.
-3. **Polling Updates & Clean UI:** The script runs regular interval checks every 10 minutes for discharging updates. Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
+1. **Instant Charger Detection:** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. A custom active daemon (`~/.local/bin/battery-monitor.sh`) detects charger plug/unplug events and immediately triggers the notification script. It is event-driven on the kernel `power_supply` uevent stream with a 250 ms `ADP1/online` fallback tick, so the notification lands in the same instant as the physical click — see [Realtime Charger Plug/Unplug Notifications](#realtime-charger-plugunplug-notifications) for the design, the measured latency and the tuning knobs. This daemon is launched on boot via `~/.config/hypr/userprefs.conf` (or the Lua equivalent after the Hyprland 0.56 migration).
+2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications, and takes the level from `/sys/class/power_supply/BAT0/capacity` (never from `energy_full_design`).
+3. **Periodic Updates & Clean UI:** The daemon sends one discharging refresh every 600 s while on battery (`REFRESH_INTERVAL`). Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
 
 ---
 
@@ -159,6 +159,88 @@ If the countdown returns, it is being started from a root-owned copy:
 ```bash
 sudo grep -rlE 'Battery Critically Low|will execute systemctl suspend' /usr/local/bin /etc
 ```
+
+---
+
+## Realtime Charger Plug/Unplug Notifications
+
+Requirement: the popup must appear in the same instant the MagSafe connector clicks in or out, matching the feel of macOS.
+
+### Why the first implementation lagged
+| Delay | Cause |
+| :--- | :--- |
+| up to 2 s | `battery-monitor.sh` slept between samples instead of waiting for an event |
+| up to 3 s | a settle hold that required the new state to persist before notifying |
+| 10-15 s | reading the level from `BAT0/status`, which the Apple SMC reports late |
+
+The 3 s hold was there to suppress the degraded controller flapping between `Charging` and `Discharging` in `BAT0/status`. That flapping does not exist in `ADP1/online` — it is a physical pin state — so the hold was pure added latency and has been removed.
+
+### Current design
+| Mechanism | Effect | Idle cost |
+| :--- | :--- | :--- |
+| `coproc` + `udevadm monitor --subsystem-match=power_supply`, read with `read -r -t` | a pin change wakes the loop immediately; the notification fires in the same millisecond | zero (the shell blocks, no child is spawned per iteration) |
+| `read -t $POLL_INTERVAL` timeout (0.25 s) on that same read | the AC pin is re-checked 4x/s if no uevent ever arrives, so worst case stays under a quarter second | zero |
+| value comparison, not event counting | duplicate uevents from one physical transition collapse to one notification | — |
+| wall-clock jump > `RESUME_GAP` (30 s) | treated as a wake from sleep: the current state is adopted **silently**, no phantom "unplugged" popup after resuming | — |
+| `notify-send -r 923` | a second notification replaces the previous one instead of stacking | — |
+| capacity retry (4 x 0.3 s) in `battery-notify.sh` | a slow SMC read no longer drops the event; if the level never arrives the message is still sent without a percentage | up to 1.2 s, only when the read is late |
+| `flock` on `$XDG_RUNTIME_DIR/battery-monitor.lock` | one monitor per session, no duplicate notifications | — |
+
+### Measured latency
+Measured with a fake `POWER_SUPPLY_DIR` (so the values can be flipped on demand) and a stub `BATTERY_NOTIFY_CMD` that timestamps its invocation:
+
+| Transition | Measured |
+| :--- | :--- |
+| charger removed -> notification | **80 ms** |
+| charger inserted -> notification | **262 ms** |
+
+Both numbers come from the **fallback tick** path, because a fixture directory emits no kernel uevents. On real hardware the uevent path wakes the loop directly, so the expected figure is a few milliseconds; the fallback bounds the worst case at ~250 ms plus process start. Re-measure on the machine with:
+```bash
+# flip the charger while this runs; 0 = on battery, 1 = charging
+while :; do printf '%s ' "$(date +%T.%3N)"; cat /sys/class/power_supply/ADP1/online; sleep 0.1; done
+```
+and compare against the timestamp of the popup.
+
+### Tuning knobs
+All are environment overrides; defaults are the values used on this machine.
+
+| Variable | Default | Meaning |
+| :--- | :--- | :--- |
+| `POLL_INTERVAL` | `0.25` | fallback tick; also caps worst-case detection latency |
+| `REFRESH_INTERVAL` | `600` | periodic discharging notification while on battery |
+| `RESUME_GAP` | `30` | wall-clock jump (seconds) treated as a resume |
+| `CAPACITY_RETRIES` / `CAPACITY_RETRY_DELAY` | `4` / `0.3` | how long the notifier waits for a late `BAT0/capacity` |
+| `LOW_BATTERY_PERCENT` | `15` | unplug popup escalates to critical below this |
+| `AC_DEVICE` / `BAT_DEVICE` | `ADP1` / `BAT0` | sysfs device names (`ls /sys/class/power_supply`) |
+| `POWER_SUPPLY_DIR` | `/sys/class/power_supply` | base path; override to test against a fixture |
+| `BATTERY_NOTIFY_CMD` | `battery-notify.sh` on `PATH`, else `~/.local/bin/battery-notify.sh` | what the monitor invokes |
+
+Raising `POLL_INTERVAL` to `1` cuts the fallback wakeups from 4/s to 1/s at the cost of up to a second of latency; the uevent path is unaffected by this value.
+
+### Install and verify
+```bash
+cd ~/Development/Arch-Configs
+install -m 0755 battery-notify.sh battery-monitor.sh safe-suspend.sh ~/.local/bin/
+pkill -f 'battery-monitor\.sh'; (setsid ~/.local/bin/battery-monitor.sh >/dev/null 2>&1 &)
+```
+Expected on the first start: one log line, no notification.
+```bash
+# confirm which path is active: "event-driven on power_supply uevents" or "polling ..."
+journalctl --user -b | grep battery-monitor
+# or, started from a terminal, its stderr shows it directly
+~/.local/bin/battery-monitor.sh
+```
+Then unplug once: exactly one "Charger disconnected · NN% remaining", with no delay that you can perceive.
+
+### Troubleshooting
+| Symptom | Cause / fix |
+| :--- | :--- |
+| Slow but correct | Log says `polling ...` -> `udevadm` missing (`pacman -S systemd`) or the listener died; the fallback still works at `POLL_INTERVAL` |
+| Two popups per transition | A second notifier is also running -> `./battery-fix.sh --dry-run` |
+| Notification instant, Waybar still ~10 s behind | Waybar's own battery poll -> set `"interval": 1` (or `0`) in `~/.local/share/waybar/modules/battery.jsonc` |
+| Percentage wrong (e.g. 22% vs 72%) | Something is still reading `energy_full_design`; the shipped scripts read `BAT0/capacity` |
+| Nothing at all | Device name differs -> `ls /sys/class/power_supply`, then set `AC_DEVICE`/`BAT_DEVICE` |
+| Popup reappears after waking from sleep | A reminder from a stale daemon; the monitor itself re-syncs silently by design |
 
 ---
 
