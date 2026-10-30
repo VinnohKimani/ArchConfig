@@ -125,6 +125,33 @@ cat /sys/class/power_supply/ADP1/online /sys/class/power_supply/BAT0/capacity
 upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E 'percentage|state'
 ```
 
+### A second notifier can survive the fix (the countdown banner)
+
+If the laptop still suspends after the scripts above are installed, look at the popup text. This repository's notifier never prints a countdown; this one does and comes from an older/local script that is still installed and still running:
+
+> **Battery Critically Low**
+> 43% is critically low. Device will execute systemctl suspend in 1:56.
+
+Two independent bugs are visible in that message, and it is why a "fixed" machine can keep sleeping:
+
+1. **Broken threshold comparison.** 43% is compared against the low-battery threshold and wins. Either the comparison is inverted/arithmetic is done on a decimal string, or the threshold constant is wrong (a `45`/`50` default instead of 25). Nothing about the reading is wrong here — 43% is correct.
+2. **Suspend still comes from the notifier.** The countdown ends in `systemctl suspend`, which is exactly the coupling this repo removed. A notification must never escalate to a power action.
+
+There is also the likely install-state problem: replacing files in this repository changes nothing on the running machine until they are installed and the old daemon is killed. The old daemon keeps its own timer and keeps firing.
+
+**Remediation:**
+```bash
+cd ~/ArchConfig
+./battery-fix.sh --dry-run   # shows which files/daemons it found — changes nothing
+./battery-fix.sh             # backs up, comments out the power calls, installs the fixed trio, restarts the monitor
+```
+`battery-fix.sh` searches `~/.local/bin`, `~/bin`, `~/.config/hypr`, `~/.config/autostart` and `~/.local/share/hyde` for the marker strings (`Battery Critically Low`, `will execute systemctl suspend`, `batterynotify`, `CRITICAL_PERCENT`), backs every file it edits up to `~/.local/state/battery-fix/<timestamp>/`, comments out only live `systemctl suspend|hibernate|hybrid-sleep`, `loginctl suspend`, `pm-suspend` and `rtcwake -m` lines, leaves root-owned copies alone (it prints them for a manual `sudo` edit), stops the old daemons, and points `hypridle.conf` at `safe-suspend.sh`. Then `hyprctl reload` and unplug the charger to confirm: one "Charger disconnected" notification, no countdown.
+
+If the countdown returns, it is being started from a root-owned copy:
+```bash
+sudo grep -rlE 'Battery Critically Low|will execute systemctl suspend' /usr/local/bin /etc
+```
+
 ---
 
 ## Audio Volume Auto-Unmute
