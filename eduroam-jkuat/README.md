@@ -1,25 +1,29 @@
 # Eduroam Configuration for JKUAT (Arch Linux)
 
-This folder contains the configuration files required to successfully connect to the `eduroam` WPA2-Enterprise Wi-Fi network at JKUAT using `iwd` (iNet Wireless Daemon).
+This folder contains the configuration files required to connect to the `eduroam` WPA2-Enterprise Wi-Fi network at JKUAT on Arch Linux.
 
-Since `NetworkManager` is configured to use the `iwd` backend on this machine, using NetworkManager's GUI for enterprise connections can sometimes glitch out and modify backend settings incorrectly (which previously caused system-wide Wi-Fi failures). 
-
-By supplying the configuration directly to `iwd`, we bypass any GUI bugs and ensure a seamless, native connection.
+> **Current state of this machine:** NetworkManager runs the `wpa_supplicant` backend, not `iwd`. `iwd` was removed because its DHCP backend conflicted with NetworkManager and kept dropping the link (see Phase 4 in [../CHANGELOG.md](../CHANGELOG.md)). The normal way to join Eduroam today is a native NetworkManager WPA-EAP profile (PEAP/MSCHAPv2) with the password kept in the NetworkManager secret store — no plaintext file on disk.
+>
+> The `iwd` material in this folder is kept as an **isolated diagnostic path**: it tests whether the credential/certificate pair itself works, independent of NetworkManager. Do not re-enable `iwd` as the NetworkManager backend.
 
 ## Files in this Directory
 
-- `eduroam.8021x`: The template configuration file that `iwd` reads to understand the security protocols (PEAP/MSCHAPV2) and your credentials.
-- `install_eduroam.sh`: A helper script that safely copies the configuration into the protected system directory (`/var/lib/iwd/`) with the correct permissions.
-- `claude_diagnostics.sh`: An isolated diagnostic script used to test native `iwd` connectivity without permanently altering NetworkManager. It temporarily pauses NetworkManager's control of `wlan0`, connects using `iwd`, prints the connection logs, and then automatically cleans up.
+- `eduroam.8021x`: `iwd` profile template (PEAP/MSCHAPv2) used by the diagnostic route. Contains placeholders only.
+- `jkuat_ca.pem`: JKUAT RADIUS CA certificate used for server validation.
+- `install_eduroam.sh`: Installs the `iwd` profile into `/var/lib/iwd/` with root-only (`0600`) permissions. It takes your identity from `EDUROAM_IDENTITY` and prompts for the password — **no credential is stored in the script**.
+- `claude_diagnostics.sh`: Isolated diagnostic that tests native `iwd` connectivity without permanently altering NetworkManager. It temporarily pauses NetworkManager's control of `wlan0`, connects using `iwd`, prints the connection logs, and then cleans up.
+- `claude_diagnostics_2.sh`: Second-pass variant for association/DHCP failures.
 
 ### Using the Diagnostic Script
 
 If you are encountering persistent issues with NetworkManager and Eduroam, you can use `claude_diagnostics.sh` to isolate the problem to `iwd`.
 
-1. Open `claude_diagnostics.sh` in your editor.
-2. Replace `your_student_id@students.jkuat.ac.ke` and `your_password` with your real credentials.
-3. Run the script with `sudo ./claude_diagnostics.sh`.
-4. The script will output raw connection logs. Once finished, **remember to revert the script back to placeholder credentials** so you do not accidentally commit your password!
+1. Run it with the credentials in the environment — do not paste them into the file:
+   ```bash
+   sudo EDUROAM_IDENTITY='you@students.jkuat.ac.ke' ./claude_diagnostics.sh
+   ```
+2. The script will output raw connection logs.
+3. Never commit real credentials: this repository is public and git history keeps what you remove.
 
 ## How to Set It Up
 
@@ -82,8 +86,8 @@ macOS heavily relies on the Keychain. If it saved a corrupted certificate or an 
 3. Open the **Keychain Access** app (search it in Spotlight).
 4. Search for `eduroam` in the top right. Delete any passwords or certificates related to eduroam.
 5. Re-connect to `eduroam`. When prompted for credentials, use:
-   - **Username:** `vincent.kimani2024@students.jkuat.ac.ke` *(or your respective student email/ID format)*
-   - **Password:** Your student portal password (e.g., `sct222-0131/2024`).
+   - **Username:** `your_student_id@students.jkuat.ac.ke` (use your own student email/ID format)
+   - **Password:** your student portal password.
 6. If a "Verify Certificate" window pops up showing the JKUAT CA, click **Show Certificate**, expand the Trust section, select **Always Trust**, and click Continue.
 
 *Alternative macOS Setup:* The easiest way to configure Eduroam perfectly on macOS is to use the official configuration profile. Connect to a mobile hotspot, go to [cat.eduroam.org](https://cat.eduroam.org/), select JKUAT, and download the Apple macOS profile. Double-click the downloaded `.mobileconfig` file to install it, enter your credentials when prompted, and it will automatically handle all security and certificate settings for you!

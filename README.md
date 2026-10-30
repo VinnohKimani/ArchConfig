@@ -15,7 +15,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 | **Trackpad** | Broadcom BCM5974 Multitouch | `bcm5974` / libinput | `scroll_factor = 1.0`, natural scroll |
 | **Keyboard** | Apple Internal Keyboard & Backlight | `apple` HID / SMC | Custom brightness via `kbd_brightnesscontrol.sh` |
 | **Wi-Fi / BT** | Broadcom BCM43602 (802.11ac) | `brcmfmac` / `wpa_supplicant` | `feature_disable=0x82000`, MAC rand off |
-| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Safe-suspend wrapper (< 25% abort sleep) |
+| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Notify-only monitor, safe-suspend wrapper (< 25% abort sleep) |
 | **Compositor**| Hyprland (Wayland) | HyDE framework | Dynamic theming (Wallbash), Dunst, Waybar |
 
 ---
@@ -26,19 +26,24 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-8)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-9)
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
 ├── hypridle.conf              # Screen dim, lock screen, DPMS, and safe-suspend listeners
 ├── kbd_brightnesscontrol.sh   # SMC keyboard backlight increment/decrement helper script
+├── battery-monitor.sh         # ADP1 AC-pin watcher (notify only, never suspends)
+├── battery-notify.sh          # Charger/battery notification script (notify only)
+├── safe-suspend.sh            # Guarded suspend wrapper, the only path to S3
 ├── dunst.sh                   # HyDE notification daemon theme generator & launcher
 ├── dunst.dcol                 # Dynamic Wallbash color palette template for Dunst
 └── eduroam-jkuat/             # Enterprise WPA-EAP Wi-Fi suite for university access
     ├── README.md              # Eduroam setup, security model, and troubleshooting guide
-    ├── eduroam-jkuat.nmconnection # Sanitized NetworkManager connection profile template
+    ├── eduroam.8021x          # WPA-EAP PEAP/MSCHAPv2 profile template (credentials redacted)
+    ├── jkuat_ca.pem           # JKUAT RADIUS CA certificate
+    ├── install_eduroam.sh     # Installs the profile with root-only permissions
     ├── claude_diagnostics.sh  # Automated Wi-Fi diagnostic & certificate analyzer
-    └── test_eduroam.sh        # Live connection testing and journal monitoring script
+    └── claude_diagnostics_2.sh # Second-pass diagnostic (association + DHCP testing)
 ```
 
 ---
@@ -58,9 +63,10 @@ Arch-Configs/
 - **Problem:** When unplugged, waking from sleep or sleeping below ~25% battery caused sudden power loss and hard shutdowns ("dead on wake").
 - **Root Cause:** Hardware battery degradation coupled with aggressive UPower critical action thresholds (`PercentageAction=27`).
 - **Resolution:**
-  1. Created `~/.local/bin/safe-suspend.sh` which checks AC power and battery level before sleeping. If battery is < 25% and unplugged, suspend is prevented and a critical warning notification is sent.
-  2. Integrated safe-suspend into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch).
+  1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 25% and unplugged, suspend is prevented and a critical warning notification is sent. It fails safe: an unreadable or unstable reading also blocks the suspend.
+  2. Integrated into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch). It is the **only** path to S3 — no config calls `systemctl suspend` directly.
   3. Calibrated UPower thresholds in `/etc/UPower/UPower.conf` (`PercentageCritical=5`, `PercentageAction=2`).
+  4. **Regression fixed (Oct 2026):** removing the charger used to put the laptop to sleep. The notification script derived the level from `energy_now / energy_full_design` (~22% on a 33% health battery) and its "critical battery" branch suspended the machine on every unplug. Now [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity`, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) polls `ADP1/online` instead of the lagging udev power_supply stream. Details in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#battery-charger-unplug-suspend-regression).
 
 ### 3. Trackpad Calibration & Wayland Browser Acceleration
 - **Problem:** 
@@ -79,7 +85,12 @@ Arch-Configs/
 - **Dual-Boot Expansion (Option A):** Documented the safest path to reclaim storage from macOS Sequoia. Shrinking the APFS container in macOS creates free space before the Arch partition, which is formatted as `/dev/sda4` and mounted as extra data storage without modifying existing root filesystem sectors.
   - Full protocol documented in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
 
-### 5. Power Button Protection & Sleep/Wake Optimization
+### 5. Hyprland 0.56 `.conf` Deprecation (Lua migration)
+- **Problem:** Startup banner: *"You are using the .conf config format, support for which will be removed in Hyprland 0.57."*
+- **Root Cause:** Hyprland 0.55 introduced the Lua configuration API and 0.56 warns on every legacy hyprlang (`.conf`) config. Upstream HyDE has migrated its dotfiles; a HyDE install from before that release is still pointing at `hyprland.conf`.
+- **Resolution:** Migrate the HyDE dotfiles (`install.sh -r`, which deploys `~/.local/share/hypr/hyde.lua`) and move personal settings from `userprefs.conf` into `~/.config/hypr/hyprland.lua`. Until then, pin `hyprland`/`hyprland-qtutils` in `IgnorePkg` so 0.57 does not arrive unannounced. Full procedure in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#hyprland-056-conf-format-deprecation).
+
+### 6. Power Button Protection & Sleep/Wake Optimization
 - **Power Button:** Configured `/etc/systemd/logind.conf.d/ignore-power-key.conf` (`HandlePowerKey=ignore`) to protect against accidental shutdowns from keyboard brush hits.
 - **Sleep/Wake Latency:** Enabled SPI ACPI wakeup (`SPIT`) via `macbook-wakeup.service` for instant keyboard/trackpad wake, and disabled Bluetooth autosuspend (`btusb.enable_autosuspend=n`) to eliminate 15-second resume hangs (error -110).
 

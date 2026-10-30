@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
+# Second-pass iwd diagnostic (PEAP/MSCHAPv2 with debug daemon).
+# Credentials come from the environment; nothing is stored in this file:
+#   sudo EDUROAM_IDENTITY='you@students.jkuat.ac.ke' ./claude_diagnostics_2.sh
 import os
 import subprocess
+import getpass
+import sys
 import time
 import configparser
 
 if os.geteuid() != 0:
     print("Please run this script with sudo.")
     exit(1)
+
+identity = os.environ.get('EDUROAM_IDENTITY', '').strip() or input(
+    'JKUAT student identity (e.g. you@students.jkuat.ac.ke): ').strip()
+if not identity:
+    sys.exit('No identity supplied, aborting.')
+password = os.environ.get('EDUROAM_PASSWORD', '') or getpass.getpass('Eduroam password: ')
+if not password:
+    sys.exit('No password supplied, aborting.')
 
 print("--- Checking for conflicting profiles in /var/lib/iwd ---")
 subprocess.run(['ls', '-la', '/var/lib/iwd/'])
@@ -26,8 +39,8 @@ config['Security'] = {
     'EAP-Method': 'PEAP',
     'EAP-Identity': 'anonymous@jkuat.ac.ke',
     'EAP-PEAP-Phase2-Method': 'MSCHAPV2',
-    'EAP-PEAP-Phase2-Identity': 'vincent.kimani2024@students.jkuat.ac.ke',
-    'EAP-PEAP-Phase2-Password': 'sct222-0131/2024'
+    'EAP-PEAP-Phase2-Identity': identity,
+    'EAP-PEAP-Phase2-Password': password
 }
 config['Settings'] = {
     'AutoConnect': 'true'

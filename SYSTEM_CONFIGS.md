@@ -92,6 +92,41 @@ If you install static legacy packages from the AUR that you do not want `yay` to
 
 ---
 
+## Battery: Charger Unplug Suspend Regression
+
+### Symptoms
+Pulling the MagSafe charger out suspended the laptop immediately — the screen locked, then the machine went to S3 — at any battery level, including 70-80%. Plugging the charger back in resumed it normally. Nothing in `hypridle` had timed out, and `journalctl` showed a clean, user-space initiated suspend.
+
+### Root Causes
+1. **Wrong capacity source.** `battery-notify.sh` derived the level from `energy_now / energy_full_design` instead of reading `BAT0/capacity`. On this pack (1,863 cycles, 33% health) that ratio is permanently low — ~22% while Waybar, UPower and the kernel all reported ~72%.
+2. **Power actions inside the notification script.** The script had a "battery critical" branch that called `systemctl suspend` to protect the session. Combined with cause 1, any AC unplug looked like a critical-battery event, so unplugging *was* the trigger.
+3. **Event storm from udev.** `battery-monitor.sh` listened to `udevadm monitor -s power_supply`, which inherits the 10-15s Apple SMC lag and replays the degraded controller's Charging/Discharging flapping, firing the low-battery branch several times per transition.
+
+### Resolution
+1. **Notify-only scripts.** [battery-notify.sh](battery-notify.sh) no longer contains any power call — no `suspend`, no `loginctl`, no `hyprctl dispatch dpms`. The header comment states this explicitly so it is not reintroduced.
+2. **Correct reading.** The level now comes from `/sys/class/power_supply/BAT0/capacity` (the same number Waybar/UPower display), with a range guard so a garbage or out-of-range value produces *no* notification rather than a false alarm.
+3. **Adapter-first monitoring.** [battery-monitor.sh](battery-monitor.sh) polls `/sys/class/power_supply/ADP1/online` every 2s, requires a transition to hold for 3s before notifying, adopts the first sample silently, and de-duplicates with `notify-send -r 923`. A `600s` refresh gives the periodic discharging update. A `flock` on `$XDG_RUNTIME_DIR` keeps one instance per session.
+4. **One guarded suspend path.** [safe-suspend.sh](safe-suspend.sh) is the only thing that may call `systemctl suspend`: it suspends when on AC, suspends when on battery above 25%, and blocks (with a critical notification) below 25% or on any unreadable/unstable reading. [hypridle.conf](hypridle.conf) and the lid-switch binding call it instead of `systemctl suspend`.
+5. **Install.**
+   ```bash
+   install -m 0755 battery-notify.sh battery-monitor.sh safe-suspend.sh ~/.local/bin/
+   ```
+
+### Diagnosing a stray suspend on this machine
+```bash
+# Who asked for the suspend?
+journalctl -b | grep -iE 'suspended|suspend' | tail -30
+
+# Any config still calling systemctl suspend directly?
+grep -rn 'systemctl suspend' ~/.local/bin ~/.config/hypr ~/.config/systemd 2>/dev/null
+
+# Live state, both sources must agree
+cat /sys/class/power_supply/ADP1/online /sys/class/power_supply/BAT0/capacity
+upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E 'percentage|state'
+```
+
+---
+
 ## Audio Volume Auto-Unmute
 
 ### Symptoms
@@ -253,6 +288,59 @@ A red banner displaying `gestures:workspace_swipe does not exist` appeared on st
 
 ### Resolution
 - **Resolution:** Remove the deprecated variables from `~/.config/hypr/userprefs.conf`. (These were cleared out, and `hyprctl reload` was issued to flush the error banner).
+
+---
+
+## Hyprland 0.56 `.conf` Format Deprecation
+
+### Symptoms
+A yellow banner at the top of the screen on startup and after every `hyprctl reload`:
+
+> ⚠ You are using the .conf config format, support for which will be removed in Hyprland 0.57.
+
+### Root Cause
+Hyprland 0.55 added a Lua configuration API and 0.56 warns whenever the running config is the legacy hyprlang (`.conf`) format. HyDE migrated its dotfiles to Lua (`~/.local/share/hypr/hyde.lua`); a HyDE install made before that release still deploys and reads `~/.config/hypr/hyprland.conf` and the files it sources. The warning is not an error and nothing is broken yet, but 0.57 stops parsing `.conf` entirely.
+
+### Resolution (migrate)
+1. Deploy the Lua dotfiles (this is what actually switches the format — `git pull` alone changes nothing on disk):
+   ```bash
+   cd ~/HyDE/Scripts && git pull && ./install.sh -r
+   ```
+2. Make sure the Lua runtime is present: `sudo pacman -S lua luarocks`.
+3. Port personal settings from the old `~/.config/hypr/userprefs.conf` into `~/.config/hypr/hyprland.lua` — nothing under `.conf` is read any more:
+   ```lua
+   hl.config({
+       input = {
+           sensitivity = 0.5,
+           touchpad = {
+               natural_scroll = true,
+               tap-to-click = true,
+               clickfinger_behavior = true,
+               scroll_factor = 1.0,
+               tap-and-drag = false,
+           },
+       },
+   })
+
+   hl.bind("SUPER ALT + R", hl.dsp.exec_cmd("obs --startrecording"), {
+       description = "[Utilities] screen recording",
+   })
+   ```
+   This covers this machine's customisations: pointer/touchpad block, `Super+Alt+R` OBS recording bind, safe-suspend on the lid switch, and the keyboard-backlight binds (`brightnessctl --device='smc::kbd_backlight'`).
+4. Start Hyprland against `hyde.lua`, not the old file — `Hyprland -c ${XDG_DATA_HOME:-$HOME/.local/share}/hypr/hyde.lua`, or through `start-hyprland`.
+5. If the session comes up without colours, run `hyde-shell reload`.
+6. Keep the orphaned `.conf` files until the port is verified, then delete them; they are the only copy of the old config.
+
+### Resolution (stay on hyprlang for now)
+Pin the compositor so 0.57 cannot land before the migration is done — `/etc/pacman.conf`, `[options]` section:
+```ini
+IgnorePkg = hyprland
+```
+This suppresses nothing; the banner stays. It only guarantees the `.conf` format keeps working until the migration above is done.
+
+### Notes
+- `hl.config({ autogenerated = true })` is a *different* banner (the "default config" warning); remove that line to silence it, not this one.
+- Verify a broken reload with `hyprctl configerrors` — it stays empty for most Lua migration mistakes, so check bindings and monitors by hand.
 
 ---
 

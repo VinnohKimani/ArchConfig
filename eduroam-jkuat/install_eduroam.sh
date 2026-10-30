@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
+# Installs the iwd Eduroam profile with root-only permissions.
+#
+# Credentials are NEVER stored in this file. Provide them at runtime:
+#
+#   sudo EDUROAM_IDENTITY='you@students.jkuat.ac.ke' ./install_eduroam.sh
+#
+# The password is read from the environment (EDUROAM_PASSWORD) or prompted for
+# silently. This repository is public: never commit a real credential here.
 import os
 import subprocess
 import configparser
+import getpass
+import sys
 import time
 import pwd
 import grp
@@ -9,6 +19,18 @@ import grp
 if os.geteuid() != 0:
     print("Please run this script with sudo.")
     exit(1)
+
+identity = os.environ.get('EDUROAM_IDENTITY', '').strip()
+if not identity:
+    identity = input('JKUAT student identity (e.g. you@students.jkuat.ac.ke): ').strip()
+if not identity:
+    sys.exit('No identity supplied, aborting.')
+
+password = os.environ.get('EDUROAM_PASSWORD', '')
+if not password:
+    password = getpass.getpass('Eduroam password: ')
+if not password:
+    sys.exit('No password supplied, aborting.')
 
 print("Telling NetworkManager to temporarily stop interfering with wlan0...")
 subprocess.run(['nmcli', 'device', 'set', 'wlan0', 'managed', 'no'])
@@ -27,8 +49,8 @@ config['Security'] = {
     'EAP-Method': 'TTLS',
     'EAP-Identity': 'anonymous@jkuat.ac.ke',
     'EAP-TTLS-Phase2-Method': 'Tunneled-PAP',
-    'EAP-TTLS-Phase2-Identity': 'vincent.kimani2024@students.jkuat.ac.ke',
-    'EAP-TTLS-Phase2-Password': 'sct222-0131/2024',
+    'EAP-TTLS-Phase2-Identity': identity,
+    'EAP-TTLS-Phase2-Password': password,
     'EAP-TTLS-CACert': '/etc/ssl/certs/jkuat_ca.pem'
 }
 config['Settings'] = {
@@ -39,7 +61,7 @@ print("Creating TTLS+PAP iwd profile...")
 with open('/var/lib/iwd/eduroam.8021x', 'w') as configfile:
     config.write(configfile, space_around_delimiters=False)
 
-# Claude's genius fix: enforcing strict root ownership for everything iwd touches!
+# Enforce strict root ownership on everything iwd reads.
 uid = pwd.getpwnam('root').pw_uid
 gid = grp.getgrnam('root').gr_gid
 

@@ -24,7 +24,7 @@ echo "--- STEP 1 & 2: Checking directory and file ---"
 ls -ld /var/lib/iwd
 ls -l /var/lib/iwd/eduroam.8021x
 stat /var/lib/iwd/eduroam.8021x
-cat -A /var/lib/iwd/eduroam.8021x | sed 's/sct222-0131\/2024/[REDACTED]/g'
+cat -A /var/lib/iwd/eduroam.8021x | sed -E 's/(Phase2-(Identity|Password)=).*/\1[REDACTED]/'
 hexdump -C /var/lib/iwd/eduroam.8021x | head -10
 
 echo ""

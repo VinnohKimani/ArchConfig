@@ -44,3 +44,10 @@
   - Removed Autodesk MIME scheme handlers from `~/.config/mimeapps.list`.
   - Removed legacy symlink `/usr/lib/libjbig.so.2.1`.
 - **Storage Reclaim (+22.2 GB)**: Deleted 14GB of RPMs and staging builds in `~/Downloads/maya`, unpacked resources in `~/Downloads/SetupRes` and `~/Downloads/manifest`, all user preferences and environments in `~/maya`, and application roots in `/usr/autodesk` and `/opt/Autodesk`. Dropped root disk usage from 89% (9.8GB free) to 64% (32GB free).
+
+## Phase 9: Charger-Unplug Suspend Fix, Hyprland 0.56 Lua Migration & Doc Audit
+- **Battery regression (unplug = sleep)**: `battery-notify.sh` computed the level from `energy_now / energy_full_design` (~22% on this 33%-health pack) and contained a "critical battery" branch that called `systemctl suspend`, so every AC unplug suspended the laptop. Rewrote it as strictly notification-only, reading `BAT0/capacity` with a range guard.
+- **Event storm removed**: `battery-monitor.sh` now polls `ADP1/online` (2s) with a 3s settle check and `notify-send -r` de-duplication instead of consuming the lagging, flapping `udevadm monitor -s power_supply` stream. Single instance enforced with `flock`.
+- **Single suspend path**: `safe-suspend.sh` is now the only caller of `systemctl suspend` and fails safe (blocks on unreadable/unstable readings as well as on < 25% battery). `hypridle.conf` calls `~/.local/bin/safe-suspend.sh` instead of `systemctl suspend`.
+- **Hyprland 0.56 banner** (`You are using the .conf config format...`): documented the Lua migration (`install.sh -r`, `lua`/`luarocks`, port `userprefs.conf` to `~/.config/hypr/hyprland.lua`, start via `hyde.lua`) plus the `IgnorePkg = hyprland` fallback to keep 0.57 from breaking the session mid-migration.
+- **Documentation audit**: fixed the `eduroam-jkuat/` file index (the repository never contained `eduroam-jkuat.nmconnection` or `test_eduroam.sh`), and corrected the Eduroam guide, which still described `iwd` as the active NetworkManager backend after the stack was reverted to `wpa_supplicant` in Phase 4.
