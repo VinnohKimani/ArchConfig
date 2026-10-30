@@ -15,10 +15,11 @@
 
 set -uo pipefail
 
+POWER_SUPPLY_DIR="${POWER_SUPPLY_DIR:-/sys/class/power_supply}"
 BAT_DEVICE="${BAT_DEVICE:-BAT0}"
 AC_DEVICE="${AC_DEVICE:-ADP1}"
-BAT_PATH="/sys/class/power_supply/${BAT_DEVICE}"
-AC_PATH="/sys/class/power_supply/${AC_DEVICE}"
+BAT_PATH="${POWER_SUPPLY_DIR}/${BAT_DEVICE}"
+AC_PATH="${POWER_SUPPLY_DIR}/${AC_DEVICE}"
 MIN_SUSPEND_PERCENT="${MIN_SUSPEND_PERCENT:-25}"
 APP_NAME="HyDE Alert"
 

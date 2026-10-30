@@ -12,14 +12,23 @@
 # UPower both said ~72%), so its "battery critical -> protect the session"
 # branch fired on every AC unplug and put the machine to sleep even at 70%+.
 # Keep this file free of power calls.
+#
+# Latency: the plug state comes from ADP1/online (the physical pin, updated by
+# the kernel immediately), so the message is correct the moment it fires. The
+# level comes from BAT0/capacity, which the Apple SMC can report a second or two
+# late; that read is retried briefly, and if it never settles the notification
+# still goes out (without a number) rather than being dropped.
 
 set -uo pipefail
 
+POWER_SUPPLY_DIR="${POWER_SUPPLY_DIR:-/sys/class/power_supply}"
 BAT_DEVICE="${BAT_DEVICE:-BAT0}"
 AC_DEVICE="${AC_DEVICE:-ADP1}"
-BAT_PATH="/sys/class/power_supply/${BAT_DEVICE}"
-AC_PATH="/sys/class/power_supply/${AC_DEVICE}"
+BAT_PATH="${POWER_SUPPLY_DIR}/${BAT_DEVICE}"
+AC_PATH="${POWER_SUPPLY_DIR}/${AC_DEVICE}"
 LOW_BATTERY_PERCENT="${LOW_BATTERY_PERCENT:-15}"
+CAPACITY_RETRIES="${CAPACITY_RETRIES:-4}"
+CAPACITY_RETRY_DELAY="${CAPACITY_RETRY_DELAY:-0.3}"
 APP_NAME="HyDE Notify"
 REPLACE_ID=923
 
@@ -42,8 +51,22 @@ battery_capacity() {
     printf '%s\n' "$value"
 }
 
+# The SMC briefly returns nothing or a stale value around a charger transition.
+# Retry instead of dropping the notification.
+capacity_with_retry() {
+    local attempt value
+    for attempt in $(seq 1 "$CAPACITY_RETRIES"); do
+        if value=$(battery_capacity); then
+            printf '%s\n' "$value"
+            return 0
+        fi
+        sleep "$CAPACITY_RETRY_DELAY"
+    done
+    return 1
+}
+
 icon_for_capacity() {
-    local capacity=$1
+    local capacity=${1:-50}
     if (( capacity <= LOW_BATTERY_PERCENT )); then
         printf 'battery-caution-symbolic'
     elif (( capacity <= 40 )); then
@@ -56,20 +79,22 @@ icon_for_capacity() {
 }
 
 online=$(ac_online) || { log "cannot read ${AC_PATH}/online — no notification"; exit 0; }
-capacity=$(battery_capacity) || { log "cannot read ${BAT_PATH}/capacity — no notification"; exit 0; }
+capacity=$(capacity_with_retry) || capacity=""
 
 if [[ $online == 1 ]]; then
+    body="${capacity:+${capacity}% · charging}"
     notify-send -a "$APP_NAME" -r "$REPLACE_ID" -u low \
         -i "battery-full-charging-symbolic" \
-        "Charger connected" "${capacity}% · charging"
-elif (( capacity <= LOW_BATTERY_PERCENT )); then
+        "Charger connected" "${body:-level not reported yet}"
+elif [[ -n $capacity ]] && (( capacity <= LOW_BATTERY_PERCENT )); then
     notify-send -a "$APP_NAME" -r "$REPLACE_ID" -u critical \
         -i "battery-caution-symbolic" \
         "Battery low — charger disconnected" "${capacity}% remaining, plug in now"
 else
+    body="${capacity:+${capacity}% remaining}"
     notify-send -a "$APP_NAME" -r "$REPLACE_ID" -u normal \
         -i "$(icon_for_capacity "$capacity")" \
-        "Charger disconnected" "${capacity}% remaining"
+        "Charger disconnected" "${body:-level not reported yet}"
 fi
 
 exit 0

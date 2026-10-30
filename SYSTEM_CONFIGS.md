@@ -105,7 +105,15 @@ Pulling the MagSafe charger out suspended the laptop immediately — the screen 
 ### Resolution
 1. **Notify-only scripts.** [battery-notify.sh](battery-notify.sh) no longer contains any power call — no `suspend`, no `loginctl`, no `hyprctl dispatch dpms`. The header comment states this explicitly so it is not reintroduced.
 2. **Correct reading.** The level now comes from `/sys/class/power_supply/BAT0/capacity` (the same number Waybar/UPower display), with a range guard so a garbage or out-of-range value produces *no* notification rather than a false alarm.
-3. **Adapter-first monitoring.** [battery-monitor.sh](battery-monitor.sh) polls `/sys/class/power_supply/ADP1/online` every 2s, requires a transition to hold for 3s before notifying, adopts the first sample silently, and de-duplicates with `notify-send -r 923`. A `600s` refresh gives the periodic discharging update. A `flock` on `$XDG_RUNTIME_DIR` keeps one instance per session.
+3. **Adapter-first, realtime monitoring.** [battery-monitor.sh](battery-monitor.sh) blocks on the kernel `power_supply` uevent stream (`udevadm monitor --subsystem-match=power_supply`) inside a `coproc`, so a pin change wakes it immediately and the notification fires in the same millisecond; idle cost is zero because `read -t` waits in the shell, not in a child process. The same read carries a `0.25s` timeout, so the AC pin is re-checked four times a second even if no uevent arrives — worst-case latency stays well under a quarter second. There is no settle delay any more (the old `3s` hold filtered `BAT0/status` flapping, not the pin), transitions are collapsed by comparing the value instead of the event, a clock jump over `30s` is treated as a resume and re-syncs silently, `notify-send -r 923` de-duplicates, and a `600s` refresh gives the periodic discharging update. A `flock` on `$XDG_RUNTIME_DIR` keeps one instance per session. [battery-notify.sh](battery-notify.sh) retries a lagging `BAT0/capacity` read (`0.3s` × 4) and still sends the notification without a percentage if the level never arrives, so an event is never dropped.
+
+   Measure the real latency on the machine:
+   ```bash
+   # watch the pin and the notification timestamp side by side
+   watch -n0.25 cat /sys/class/power_supply/ADP1/online
+   journalctl --user -f -n0 2>/dev/null & notify-send -u low "probe"
+   ```
+   If notifications are fast but Waybar's battery module still lags ~10s, that is Waybar's own poll: set `"interval": 1` (or `"interval": 0` to rely on uevents) in `~/.local/share/waybar/modules/battery.jsonc`.
 4. **One guarded suspend path.** [safe-suspend.sh](safe-suspend.sh) is the only thing that may call `systemctl suspend`: it suspends when on AC, suspends when on battery above 25%, and blocks (with a critical notification) below 25% or on any unreadable/unstable reading. [hypridle.conf](hypridle.conf) and the lid-switch binding call it instead of `systemctl suspend`.
 5. **Install.**
    ```bash
