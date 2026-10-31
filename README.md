@@ -15,7 +15,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 | **Trackpad** | Broadcom BCM5974 Multitouch | `bcm5974` / libinput | `scroll_factor = 1.0`, natural scroll |
 | **Keyboard** | Apple Internal Keyboard & Backlight | `apple` HID / SMC | Custom brightness via `kbd_brightnesscontrol.sh` |
 | **Wi-Fi / BT** | Broadcom BCM43602 (802.11ac) | `brcmfmac` / `wpa_supplicant` | `feature_disable=0x82000`, MAC rand off |
-| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Notify-only monitor, safe-suspend wrapper (< 25% abort sleep) |
+| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Calibrated monitor (20% plug-in, 10% suspend guard) |
 | **Compositor**| Hyprland (Wayland) | HyDE framework | Dynamic theming (Wallbash), Dunst, Waybar |
 
 ---
@@ -64,7 +64,7 @@ Arch-Configs/
 - **Problem:** When unplugged, waking from sleep or sleeping below ~25% battery caused sudden power loss and hard shutdowns ("dead on wake").
 - **Root Cause:** Hardware battery degradation coupled with aggressive UPower critical action thresholds (`PercentageAction=27`).
 - **Resolution:**
-  1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 25% and unplugged, suspend is prevented and a critical warning notification is sent. It fails safe: an unreadable or unstable reading also blocks the suspend.
+  1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 10% and unplugged, suspend is prevented and a critical warning notification is sent. It fails safe: an unreadable or unstable reading also blocks the suspend.
   2. Integrated into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch). It is the **only** path to S3 — no config calls `systemctl suspend` directly.
   3. Calibrated UPower thresholds in `/etc/UPower/UPower.conf` (`PercentageCritical=5`, `PercentageAction=2`).
   4. **Regression fixed (Oct 2026):** removing the charger used to put the laptop to sleep. The notification script derived the level from `energy_now / energy_full_design` (~22% on a 33% health battery) and its "critical battery" branch suspended the machine on every unplug. Now [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity`, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) is event-driven: it wakes on kernel `power_supply` uevents with a 250ms `ADP1/online` fallback tick, so plug/unplug notifications land instantly (measured 80 ms unplug / 262 ms plug on the fallback path). Design, latency budget, tuning knobs and troubleshooting in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#realtime-charger-plugunplug-notifications).

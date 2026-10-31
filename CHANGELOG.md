@@ -54,3 +54,15 @@
 - **Realtime plug/unplug**: `battery-monitor.sh` is now event-driven — it blocks on the kernel `power_supply` uevent stream via `coproc`/`read -t` and falls back to a `0.25s` ADP1 check, removing the old 2 s poll and the 3 s settle (which guarded `BAT0/status` flapping, not the pin). Wake-from-sleep clock jumps re-sync silently instead of replaying a stale transition. `battery-notify.sh` retries a lagging `BAT0/capacity` four times and still fires without a percentage rather than dropping the event.
 - **Realtime latency measured**: 80 ms (unplug) and 262 ms (plug) end-to-end on a fixture exercising the fallback tick; the uevent path on real hardware is expected to be faster still. Design, tuning knobs and troubleshooting recorded in `SYSTEM_CONFIGS.md` -> *Realtime Charger Plug/Unplug Notifications*.
 - **Documentation audit**: fixed the `eduroam-jkuat/` file index (the repository never contained `eduroam-jkuat.nmconnection` or `test_eduroam.sh`), and corrected the Eduroam guide, which still described `iwd` as the active NetworkManager backend after the stack was reverted to `wpa_supplicant` in Phase 4.
+
+## Phase 10: Battery Notification Threshold Calibration & Hyprland Startup Banner Suppression
+- **Battery Low & Critical Suspend Calibration**:
+  - Calibrated low battery notification threshold to **20%**: alerts the user to plug in charger (`Connect the charger` / `Please plug in charger now`).
+  - Calibrated critical battery suspend threshold to **10%**: system only initiates suspend when battery drops to **10%** (with a grace-period countdown).
+  - Fixed HyDE state configuration in `~/.local/state/hyde/staterc` (which previously set critical to 60% and low to 65%, triggering unwanted suspend countdowns at 39%).
+  - Defined explicit configuration in `~/.config/hyde/config.toml` under `[battery.notify.threshold]` (`critical = 10`, `low = 20`).
+  - Updated `~/.local/bin/battery-notify.sh` and repo scripts to sleep at <= 10% and notify at <= 20%.
+  - Adjusted `MIN_SUSPEND_PERCENT` in `safe-suspend.sh` from 25% to 10% to align the safety guard with the new 10% threshold.
+  - Fixed premature range checks in `~/.local/lib/hyde/batterynotify.sh` and restarted `hyde-Hyprland-battery-notify.service`.
+- **Hyprland 0.56 Startup Banner Dismissal**:
+  - Added `exec-once = sleep 1 && hyprctl seterror disable` to `~/.config/hypr/userprefs.conf`. This cleanly dismisses the yellow `.conf` format deprecation banner on startup.

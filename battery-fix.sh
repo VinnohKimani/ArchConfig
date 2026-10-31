@@ -41,6 +41,7 @@ USER_ROOTS=(
     "${HOME}/.config/hypr"
     "${HOME}/.config/autostart"
     "${HOME}/.local/share/hyde"
+    "${HOME}/.local/lib/hyde"
 )
 ROOT_ROOTS=("/usr/local/bin" "/etc/systemd/system")
 
