@@ -767,6 +767,7 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 In `~/.config/hypr/userprefs.conf`:
 ```ini
 input {
+    natural_scroll = true
     sensitivity = 0.2
     accel_profile = adaptive
 
@@ -780,7 +781,13 @@ input {
         middle_button_emulation = true
     }
 }
+
+device {
+    name = bcm5974
+    natural_scroll = true
+}
 ```
+- **`natural_scroll = true` & `device:bcm5974`**: Ensures natural scrolling is enforced globally and on the Broadcom trackpad device, providing 1:1 parity with macOS trackpad scroll direction.
 - **`accel_profile = adaptive`**: Overrides HyDE's rigid `flat` acceleration profile to restore standard, velocity-sensitive momentum and fine-grained precision on high-DPI Retina screens.
 - **`sensitivity = 0.2`**: Calibrated pointer speed preventing jitter and cursor overshoot.
 - **`scroll_factor = 1.0`**: Provides 1:1 hardware scroll response (prevents artificial sluggishness while keeping natural scrolling direction).

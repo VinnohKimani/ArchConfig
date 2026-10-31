@@ -56,6 +56,7 @@
   - Adjusted `MIN_SUSPEND_PERCENT` in `safe-suspend.sh` from 25% to 10% to align the safety guard with the new 10% threshold.
   - Fixed premature range checks in `~/.local/lib/hyde/batterynotify.sh` and restarted `hyde-Hyprland-battery-notify.service`.
 - **Touchpad Acceleration & Gesture Calibration (`bcm5974`)**:
+  - Enforced `natural_scroll = true` globally in `input` and specifically targeting the MacBook trackpad device (`bcm5974`) so two-finger scrolling direction 100% matches macOS natural scrolling.
   - Overrode HyDE's rigid `accel_profile = flat` with `accel_profile = adaptive` in `~/.config/hypr/userprefs.conf`. Restored natural macOS-like momentum, velocity scaling, and fine precision on the 2560x1600 Retina display.
   - Tuned pointer sensitivity to `0.2` to eliminate jittery overshooting.
   - Enabled `disable_while_typing = true` to prevent accidental palm clicks and cursor jumps while typing.
