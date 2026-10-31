@@ -77,7 +77,8 @@ Arch-Configs/
   3. Touchpad scrolling had an artificial 20% slowdown.
 - **Resolution:**
   1. Created `~/.config/brave-flags.conf` with `--ozone-platform-hint=auto` and `--enable-features=TouchpadOzonePinch,TouchpadOverscrollHistoryNavigation` for 1:1 smooth hardware pinch zoom.
-  2. Adjusted `scroll_factor = 1.0` in `~/.config/hypr/userprefs.conf`.
+  2. In `~/.config/hypr/userprefs.conf`, overrode HyDE's `accel_profile = flat` with `accel_profile = adaptive` and tuned `sensitivity = 0.2` with `disable_while_typing = true` and `middle_button_emulation = true` for natural momentum and palm rejection.
+  3. Adjusted `scroll_factor = 1.0` in `~/.config/hypr/userprefs.conf`.
 
 ### 4. Storage Hygiene & Dual-Boot Expansion Protocol
 - System storage is maintained through a strict budget:
@@ -102,5 +103,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 8).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 9).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

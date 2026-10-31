@@ -35,17 +35,8 @@
   - **Broadcom Bluetooth Sleep Timeout (Error -110)**: Identified Broadcom Bluetooth (`05ac:8290` / `btusb`) failing suspend with `error -110` (ETIMEDOUT) and stalling system resume for 15+ seconds. Created `/etc/modprobe.d/btusb.conf` with `options btusb enable_autosuspend=n` to eliminate the autosuspend timeout loop.
 - **Dual-Boot Storage Expansion Protocol (Option A)**:
   - Formulated and documented Option A to expand storage on the dual-boot system with macOS Sequoia. Shrinking the APFS container (`sda2`) from macOS creates unallocated space before Arch Linux (`sda3`), which can be safely partitioned as `/dev/sda4` and mounted for extra storage without risking the root filesystem.
-## Phase 8: Autodesk Maya Decommissioning & Massive Storage Recovery
-- **Package & Dependency Purge**: Uninstalled `maya 2027.2-1`, `adsklicensing`, `adskidentitymanager`, `adp-desktop-sdk`, `libtiff5`, `openssl-1.1`, `webkit2gtk`, and legacy `libsoup` using `pacman -Rns`. Removed orphaned build helper `chrpath`.
-- **System Cleanup & Configuration Reversion**:
-  - Cleaned `/etc/pacman.conf` by resetting `#IgnorePkg =` to defaults.
-  - Removed passwordless sudo rule `/etc/sudoers.d/adsklicensing`.
-  - Removed floating window rules for Maya and Autodesk Identity Manager from `~/.config/hypr/windowrules.conf`.
-  - Removed Autodesk MIME scheme handlers from `~/.config/mimeapps.list`.
-  - Removed legacy symlink `/usr/lib/libjbig.so.2.1`.
-- **Storage Reclaim (+22.2 GB)**: Deleted 14GB of RPMs and staging builds in `~/Downloads/maya`, unpacked resources in `~/Downloads/SetupRes` and `~/Downloads/manifest`, all user preferences and environments in `~/maya`, and application roots in `/usr/autodesk` and `/opt/Autodesk`. Dropped root disk usage from 89% (9.8GB free) to 64% (32GB free).
 
-## Phase 9: Charger-Unplug Suspend Fix, Hyprland 0.56 Lua Migration & Doc Audit
+## Phase 8: Charger-Unplug Suspend Fix, Power Safety & Doc Audit
 - **Battery regression (unplug = sleep)**: `battery-notify.sh` computed the level from `energy_now / energy_full_design` (~22% on this 33%-health pack) and contained a "critical battery" branch that called `systemctl suspend`, so every AC unplug suspended the laptop. Rewrote it as strictly notification-only, reading `BAT0/capacity` with a range guard.
 - **Event storm removed**: `battery-monitor.sh` stopped trusting the lagging, flapping power-supply event/status stream and reads the physical `ADP1/online` pin instead, with `notify-send -r` de-duplication and a `flock` single instance. (Interim version: a 2 s poll with a 3 s settle; both were replaced later in this phase by the event-driven loop described below.)
 - **Single suspend path**: `safe-suspend.sh` is now the only caller of `systemctl suspend` and fails safe (blocks on unreadable/unstable readings as well as on < 25% battery). `hypridle.conf` calls `~/.local/bin/safe-suspend.sh` instead of `systemctl suspend`.
@@ -55,7 +46,7 @@
 - **Realtime latency measured**: 80 ms (unplug) and 262 ms (plug) end-to-end on a fixture exercising the fallback tick; the uevent path on real hardware is expected to be faster still. Design, tuning knobs and troubleshooting recorded in `SYSTEM_CONFIGS.md` -> *Realtime Charger Plug/Unplug Notifications*.
 - **Documentation audit**: fixed the `eduroam-jkuat/` file index (the repository never contained `eduroam-jkuat.nmconnection` or `test_eduroam.sh`), and corrected the Eduroam guide, which still described `iwd` as the active NetworkManager backend after the stack was reverted to `wpa_supplicant` in Phase 4.
 
-## Phase 10: Battery Notification Threshold Calibration & Hyprland Startup Banner Suppression
+## Phase 9: Battery Calibration, Touchpad Tuning & Hyprland Startup Banner Fix
 - **Battery Low & Critical Suspend Calibration**:
   - Calibrated low battery notification threshold to **20%**: alerts the user to plug in charger (`Connect the charger` / `Please plug in charger now`).
   - Calibrated critical battery suspend threshold to **10%**: system only initiates suspend when battery drops to **10%** (with a grace-period countdown).
@@ -64,5 +55,10 @@
   - Updated `~/.local/bin/battery-notify.sh` and repo scripts to sleep at <= 10% and notify at <= 20%.
   - Adjusted `MIN_SUSPEND_PERCENT` in `safe-suspend.sh` from 25% to 10% to align the safety guard with the new 10% threshold.
   - Fixed premature range checks in `~/.local/lib/hyde/batterynotify.sh` and restarted `hyde-Hyprland-battery-notify.service`.
+- **Touchpad Acceleration & Gesture Calibration (`bcm5974`)**:
+  - Overrode HyDE's rigid `accel_profile = flat` with `accel_profile = adaptive` in `~/.config/hypr/userprefs.conf`. Restored natural macOS-like momentum, velocity scaling, and fine precision on the 2560x1600 Retina display.
+  - Tuned pointer sensitivity to `0.2` to eliminate jittery overshooting.
+  - Enabled `disable_while_typing = true` to prevent accidental palm clicks and cursor jumps while typing.
+  - Enabled `middle_button_emulation = true` for easy middle-click pasting and link management.
 - **Hyprland 0.56 Startup Banner Dismissal**:
   - Added `exec-once = sleep 1 && hyprctl seterror disable` to `~/.config/hypr/userprefs.conf`. This cleanly dismisses the yellow `.conf` format deprecation banner on startup.

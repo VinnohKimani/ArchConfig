@@ -767,7 +767,8 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 In `~/.config/hypr/userprefs.conf`:
 ```ini
 input {
-    sensitivity = 0.5
+    sensitivity = 0.2
+    accel_profile = adaptive
 
     touchpad {
         natural_scroll = true
@@ -775,11 +776,16 @@ input {
         scroll_factor = 1.0
         clickfinger_behavior = true
         tap-and-drag = false
+        disable_while_typing = true
+        middle_button_emulation = true
     }
 }
 ```
+- **`accel_profile = adaptive`**: Overrides HyDE's rigid `flat` acceleration profile to restore standard, velocity-sensitive momentum and fine-grained precision on high-DPI Retina screens.
+- **`sensitivity = 0.2`**: Calibrated pointer speed preventing jitter and cursor overshoot.
 - **`scroll_factor = 1.0`**: Provides 1:1 hardware scroll response (prevents artificial sluggishness while keeping natural scrolling direction).
-- **`sensitivity = 0.5`**: Maintains accurate pointer control on high-DPI Retina screens without overshoot.
+- **`disable_while_typing = true`**: Robust palm rejection preventing accidental cursor relocation while typing.
+- **`middle_button_emulation = true`**: Enables three-finger/combo middle-click for Linux clipboard pasting and opening links in background tabs.
 
 ---
 
