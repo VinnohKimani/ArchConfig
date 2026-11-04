@@ -88,12 +88,18 @@ Arch-Configs/
 - **Dual-Boot Expansion (Option A):** Documented the safest path to reclaim storage from macOS Sequoia. Shrinking the APFS container in macOS creates free space before the Arch partition, which is formatted as `/dev/sda4` and mounted as extra data storage without modifying existing root filesystem sectors.
   - Full protocol documented in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
 
-### 5. Hyprland 0.56 `.conf` Deprecation (Lua migration)
-- **Problem:** Startup banner: *"You are using the .conf config format, support for which will be removed in Hyprland 0.57."*
-- **Root Cause:** Hyprland 0.55 introduced the Lua configuration API and 0.56 warns on every legacy hyprlang (`.conf`) config. Upstream HyDE has migrated its dotfiles; a HyDE install from before that release is still pointing at `hyprland.conf`.
-- **Resolution:** Migrate the HyDE dotfiles (`install.sh -r`, which deploys `~/.local/share/hypr/hyde.lua`) and move personal settings from `userprefs.conf` into `~/.config/hypr/hyprland.lua`. Until then, pin `hyprland`/`hyprland-qtutils` in `IgnorePkg` so 0.57 does not arrive unannounced. Full procedure in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#hyprland-056-conf-format-deprecation).
+### 5. Hyprland 0.56 Desktop Stability & System Updates
+- **Problem:** Startup banner (*"You are using the .conf config format, support for which will be removed in Hyprland 0.57"*) and update dependency conflicts (`pacman -Syu` breaking on `aquamarine`/`hyprgraphics` ABIs when only `hyprland` was ignored).
+- **Resolution:**
+  1. Pin the entire interdependent Hyprland 0.56 stack (`IgnorePkg = aquamarine hyprcursor hyprgraphics hypridle hyprland hyprland-guiutils hyprland-qt-support hyprlang hyprlock hyprpicker hyprpolkitagent hyprsunset hyprtoolkit hyprutils hyprwire xdg-desktop-portal-hyprland`) in `/etc/pacman.conf`. This allows all system updates to run cleanly while keeping the HyDE `.conf` desktop completely stable.
+  2. Auto-dismiss the deprecation warning on startup via `exec-once = sleep 2 && hyprctl dismissnotify` in `~/.config/hypr/userprefs.conf`.
+  3. When HyDE upstream finalizes its stable automated Lua dotfile installer, migrate configs to Lua and unpin the stack. Detailed procedure in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
 
-### 6. Power Button Protection & Sleep/Wake Optimization
+### 6. Memory Thrashing & Freezing Fix (ZRAM + Swap)
+- **Problem:** Extreme sluggishness and CPU lockups at 7GB+ RAM usage caused by ZRAM thrashing (8GB ZRAM starved physical RAM, preventing swapping).
+- **Resolution:** Sized ZRAM to 50% physical RAM (`zram-size = ram / 2`, ~3.8GB) with lightweight `lz4` compression in `/etc/systemd/zram-generator.conf`, set `vm.swappiness = 60` and `vm.page-cluster = 0` in `/etc/sysctl.d/99-vm.conf`, and preserved the 8GB `/swapfile` as deep overflow protection.
+
+### 7. Power Button Protection & Sleep/Wake Optimization
 - **Power Button:** Configured `/etc/systemd/logind.conf.d/ignore-power-key.conf` (`HandlePowerKey=ignore`) to protect against accidental shutdowns from keyboard brush hits.
 - **Sleep/Wake Latency:** Enabled SPI ACPI wakeup (`SPIT`) via `macbook-wakeup.service` for instant keyboard/trackpad wake, and disabled Bluetooth autosuspend (`btusb.enable_autosuspend=n`) to eliminate 15-second resume hangs (error -110).
 
@@ -103,5 +109,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 9).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 10).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

@@ -62,4 +62,20 @@
   - Enabled `disable_while_typing = true` to prevent accidental palm clicks and cursor jumps while typing.
   - Enabled `middle_button_emulation = true` for easy middle-click pasting and link management.
 - **Hyprland 0.56 Startup Banner Dismissal**:
-  - Added `exec-once = sleep 1 && hyprctl seterror disable` to `~/.config/hypr/userprefs.conf`. This cleanly dismisses the yellow `.conf` format deprecation banner on startup.
+  - Added `exec-once = sleep 2 && hyprctl dismissnotify` to `~/.config/hypr/userprefs.conf`. This cleanly dismisses the yellow `.conf` format deprecation banner on startup.
+
+## Phase 10: Hyprland Stack Hold, ZRAM Thrashing Elimination, Script Sync & Banner Dismissal Fix
+- **Hyprland Dependency Lock for System Updates**:
+  - Diagnosed `pacman -Syu` dependency failure (`aquamarine` and `hyprgraphics` breaking library ABIs `libaquamarine.so=14-64` and `libhyprgraphics.so=4-64` when only `hyprland` was ignored).
+  - Expanded `/etc/pacman.conf` to pin the entire interdependent Hyprland 0.56 stack together (`aquamarine hyprcursor hyprgraphics hypridle hyprland hyprland-guiutils hyprland-qt-support hyprlang hyprlock hyprpicker hyprpolkitagent hyprsunset hyprtoolkit hyprutils hyprwire xdg-desktop-portal-hyprland`).
+  - Verified full dependency transaction resolution (`pacman -Syup` completes with 0 errors), allowing regular Arch system updates to proceed cleanly without breaking desktop compositor stability.
+- **ZRAM Compression Thrashing & Memory Sluggishness Fix**:
+  - Diagnosed extreme system freezing and CPU spikes (`kswapd0` / `zstd`) occurring when memory usage reached 7GB+: with `zram-size = ram` (8GB) and `vm.swappiness = 100`, physical RAM ran out of space to store compressed ZRAM pages, preventing swap-out while starving user applications.
+  - Reconfigured `/etc/systemd/zram-generator.conf`: set `zram-size = ram / 2` (3.8GB) and switched compression from heavy `zstd` to low-latency `lz4`.
+  - Configured `/etc/sysctl.d/99-vm.conf` with `vm.swappiness = 60` and `vm.page-cluster = 0` to prevent premature aggressive swapping and eliminate CPU thrashing loops.
+- **Active Script Synchronization & Daemon Cleanup**:
+  - Synced bug-fixed, event-driven scripts (`battery-monitor.sh`, `battery-notify.sh`, `safe-suspend.sh`) from `Arch-Configs/` to active runtime path `~/.local/bin/`.
+  - Stopped and disabled redundant `battery-notify.timer` in systemd user units to prevent competing polling timers.
+  - Active battery monitor daemon (`battery-monitor.sh`) now blocks on kernel `power_supply` uevents at 0% idle CPU overhead while preserving timely low-battery notifications.
+- **Startup Deprecation Banner Dismissal Fix**:
+  - Corrected invalid `hyprctl seterror disable` command to the native Hyprland notification dismissal API: `exec-once = sleep 2 && hyprctl dismissnotify` in `~/.config/hypr/userprefs.conf`.
