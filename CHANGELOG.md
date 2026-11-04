@@ -80,7 +80,17 @@
 - **Startup Deprecation Banner Dismissal Fix**:
   - Corrected invalid `hyprctl seterror disable` command to the native Hyprland notification dismissal API: `exec-once = sleep 2 && hyprctl dismissnotify` in `~/.config/hypr/userprefs.conf`.
 - **Notification Size & Typography Calibration (Dunst)**:
-  - Fixed enormous notification banners caused by `[Type-2]` app rule in Dunst applying `<span size="250%">` to all `HyDE Notify` messages (battery, charger, volume). Changed to standard bold `<b>%s</b>\n%b`.
-  - Scaled oversized icons down from `min_icon_size = 64` / `max_icon_size = 128` to a sleek `min_icon_size = 24` / `max_icon_size = 48`.
-  - Refined border thickness (`frame_width = 2`) and configured clean notification font (`JetBrainsMono Nerd Font 9`) in `~/.config/hyde/config.toml`, fixing an upstream template issue where font size defaulted to corrupted `Cantarell_SIZE`.
+  - Fixed enormous notification banners caused by `[Type-2]` app rule in Dunst applying `<span size="250%">` to all `HyDE Notify` messages (battery, charger, volume). Calibrated to a well-proportioned `<span font='14' weight='bold'>%s</span>\n%b`.
+  - Tuned icon sizes to **48px–72px** and card width to **380px** with 14px padding.
+  - Set body font to `JetBrainsMono Nerd Font 12` in `~/.config/hyde/config.toml`.
+  - Fixed Dunst daemon dying after script reloads by using persistent HyDE service activation (`hyde-shell app -u hyde-notifications.service`) instead of unmanaged background subshells.
   - Updated both `~/.local/share/wallbash/scripts/dunst.sh` and repository `dunst.sh` so future theme and wallpaper changes maintain the compact sizing.
+- **Keyboard Backlight Keys & Notification Labels**:
+  - Installed `kbd_brightnesscontrol.sh` into `~/.local/lib/hyde/` and symlinked to `~/.local/bin/kbd_brightnesscontrol`, enabling the `XF86KbdBrightnessUp` and `XF86KbdBrightnessDown` keybinds in `userprefs.conf` to work.
+  - Updated notification titles across all media controls:
+    - Screen brightness: Labeled as **Screen Brightness** with percentage (`${brightness}%`) instead of raw device name `intel_backlight`.
+    - Keyboard brightness: Labeled as **Keyboard Brightness** with percentage (`${brightness}%`) instead of generic text.
+    - Volume: Labeled as **Volume**, **Volume Muted**, and **Microphone Muted** with clear percentage and output sink names.
+- **Volume Key Auto-Unmute**:
+  - Modified `change_volume()` in `volumecontrol.sh` to automatically disarm mute (`wpctl set-mute @DEFAULT_AUDIO_SINK@ 0` / `pamixer -u`) whenever Volume Up or Volume Down keys are pressed while the audio sink is muted.
+  - Added [volumecontrol.sh](volumecontrol.sh) to repository tracking.

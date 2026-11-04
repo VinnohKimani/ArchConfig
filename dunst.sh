@@ -56,11 +56,11 @@ icon_theme = "${gtkIcon},${allIcons}"
 
 [Type-1]
 appname = "HyDE Alert"
-format = "<b>%s</b>"
+format = "<span font='14' weight='bold'>%s</span>\n%b"
 
 [Type-2]
 appname = "HyDE Notify"
-format = "<b>%s</b>\n%b"
+format = "<span font='14' weight='bold'>%s</span>\n%b"
 
 
 
@@ -99,5 +99,9 @@ MANDATORY
 
 mkdir -p "${cacheDir}/wallbash"
 envsubst <"${cacheDir}/wallbash/dunst.conf" >>"${dunstDir}/dunstrc"
-killall dunst
-dunst &
+killall dunst 2>/dev/null || true
+if command -v hyde-shell >/dev/null 2>&1; then
+    hyde-shell app -u hyde-notifications.service -t service -- dunst
+else
+    nohup dunst >/dev/null 2>&1 &
+fi

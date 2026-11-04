@@ -253,9 +253,9 @@ When the system audio is muted, pressing the volume up or volume down hotkeys in
 The default `volumecontrol.sh` script used by HyDE only passed the increment/decrement arguments to `wpctl` or `pamixer`, without explicitly toggling the mute state off.
 
 ### Resolution
-Modified the backend volume control script to send an explicit unmute command whenever the volume is adjusted, mimicking standard macOS behavior.
-- **File Modified:** `~/.local/lib/hyde/volumecontrol.sh`
-- **Change:** Injected an explicit unmute command inside the `change_volume` function when the action is `i` (increase) or `d` (decrease).
+Modified the backend volume control script (`change_volume` function) to send an explicit unmute command (`wpctl set-mute "$srce" 0` for PipeWire, and `pamixer "$srce" -u` for ALSA/PulseAudio fallback) whenever the volume is increased or decreased, mimicking standard macOS behavior.
+- **Files:** `~/.local/lib/hyde/volumecontrol.sh` and tracked repository copy [volumecontrol.sh](volumecontrol.sh).
+- **Behavior:** Pressing Volume Up (`F12` / `XF86AudioRaiseVolume`) or Volume Down (`F11` / `XF86AudioLowerVolume`) will immediately unmute the speakers and set the requested volume. Notifications display `Volume` with live percentage and output device name.
 
 ---
 
