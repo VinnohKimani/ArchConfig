@@ -79,3 +79,8 @@
   - Active battery monitor daemon (`battery-monitor.sh`) now blocks on kernel `power_supply` uevents at 0% idle CPU overhead while preserving timely low-battery notifications.
 - **Startup Deprecation Banner Dismissal Fix**:
   - Corrected invalid `hyprctl seterror disable` command to the native Hyprland notification dismissal API: `exec-once = sleep 2 && hyprctl dismissnotify` in `~/.config/hypr/userprefs.conf`.
+- **Notification Size & Typography Calibration (Dunst)**:
+  - Fixed enormous notification banners caused by `[Type-2]` app rule in Dunst applying `<span size="250%">` to all `HyDE Notify` messages (battery, charger, volume). Changed to standard bold `<b>%s</b>\n%b`.
+  - Scaled oversized icons down from `min_icon_size = 64` / `max_icon_size = 128` to a sleek `min_icon_size = 24` / `max_icon_size = 48`.
+  - Refined border thickness (`frame_width = 2`) and configured clean notification font (`JetBrainsMono Nerd Font 9`) in `~/.config/hyde/config.toml`, fixing an upstream template issue where font size defaulted to corrupted `Cantarell_SIZE`.
+  - Updated both `~/.local/share/wallbash/scripts/dunst.sh` and repository `dunst.sh` so future theme and wallpaper changes maintain the compact sizing.
