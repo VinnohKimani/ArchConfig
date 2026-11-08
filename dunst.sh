@@ -62,6 +62,10 @@ format = "<span font='14' weight='bold'>%s</span>\n%b"
 appname = "HyDE Notify"
 format = "<span font='14' weight='bold'>%s</span>\n%b"
 
+[Type-3]
+appname = "HyDE Power"
+format = "<span font='14' weight='bold'>%s</span>\n%b"
+
 
 
 [urgency_critical]

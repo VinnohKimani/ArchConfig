@@ -94,3 +94,17 @@
 - **Volume Key Auto-Unmute**:
   - Modified `change_volume()` in `volumecontrol.sh` to automatically disarm mute (`wpctl set-mute @DEFAULT_AUDIO_SINK@ 0` / `pamixer -u`) whenever Volume Up or Volume Down keys are pressed while the audio sink is muted.
   - Added [volumecontrol.sh](volumecontrol.sh) to repository tracking.
+
+## Phase 11: Notification Stack Reforms & Critical Battery Timer Suspend (10%)
+- **Critical Battery Auto-Suspend at 10% (1-Minute Grace Timer)**:
+  - Configured `timer = 60` (1 minute / 60 seconds) in `~/.config/hyde/config.toml` (lowered from 120s) and updated `~/.local/state/hyde/config`.
+  - Fixed silent execution failure in `~/.local/lib/hyde/batterynotify.sh`: `nohup "$execute_critical"` previously evaluated `"systemctl suspend"` as a literal executable name with space, failing with silent `command not found: systemctl suspend` and preventing the laptop from suspending. Replaced with `nohup bash -c "$execute_critical" &> /dev/null &`.
+  - Polished notification typography & timer format: formatted remaining countdown time cleanly as `M:SS` (`1:00`, `0:59`...`0:01`) rather than raw `1:0`/`0:9`.
+  - Added abort feedback: if the charger is plugged in during the 60-second countdown, notification ID 5 updates immediately to `"Charger Connected - Critical battery suspend cancelled."` instead of leaving stale warnings on screen.
+- **Eliminated Duplicate Plug / Unplug Alerts**:
+  - Resolved conflict between `battery-monitor.sh` (fast kernel uevents) and `batterynotify.sh` (DBus properties), which both fired notifications upon AC connect/disconnect.
+  - Set `dock = true` in `~/.config/hyde/config.toml` to mute redundant status transitions in `batterynotify.sh`, leaving realtime charger alerts to `battery-monitor.sh` while preserving battery level thresholds (20% low warning, 10% critical suspend).
+- **Notification Typography Consistency**:
+  - Added `[Type-3]` rule for `appname = "HyDE Power"` in `dunst.sh`, `~/.local/share/wallbash/scripts/dunst.sh`, and `~/.config/dunst/dunstrc` to ensure battery notifications match the bold styling of other system dialogs.
+- **Safe-Suspend Threshold Calibration**:
+  - Lowered `MIN_SUSPEND_PERCENT` from 10% to 5% in `safe-suspend.sh` (and `~/.local/bin/safe-suspend.sh`) so closing the lid or idle timeout below 10% allows the machine to suspend safely to RAM rather than blocking suspend and dying while awake.

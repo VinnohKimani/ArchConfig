@@ -15,7 +15,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 | **Trackpad** | Broadcom BCM5974 Multitouch | `bcm5974` / libinput | `scroll_factor = 1.0`, natural scroll |
 | **Keyboard** | Apple Internal Keyboard & Backlight | `apple` HID / SMC | Custom brightness via `kbd_brightnesscontrol.sh` |
 | **Wi-Fi / BT** | Broadcom BCM43602 (802.11ac) | `brcmfmac` / `wpa_supplicant` | `feature_disable=0x82000`, MAC rand off |
-| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Calibrated monitor (20% plug-in, 10% suspend guard) |
+| **Battery** | Internal Li-Poly (Degraded capacity) | UPower / ACPI | Calibrated monitor (20% low warning, 10% 1-min suspend timer) |
 | **Compositor**| Hyprland (Wayland) | HyDE framework | Dynamic theming (Wallbash), Dunst, Waybar |
 
 ---
@@ -26,7 +26,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-9)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-11)
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
@@ -64,11 +64,12 @@ Arch-Configs/
 - **Problem:** When unplugged, waking from sleep or sleeping below ~25% battery caused sudden power loss and hard shutdowns ("dead on wake").
 - **Root Cause:** Hardware battery degradation coupled with aggressive UPower critical action thresholds (`PercentageAction=27`).
 - **Resolution:**
-  1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 10% and unplugged, suspend is prevented and a critical warning notification is sent. It fails safe: an unreadable or unstable reading also blocks the suspend.
-  2. Integrated into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch). It is the **only** path to S3 — no config calls `systemctl suspend` directly.
-  3. Calibrated UPower thresholds in `/etc/UPower/UPower.conf` (`PercentageCritical=5`, `PercentageAction=2`).
-  4. **Regression fixed (Oct 2026):** removing the charger used to put the laptop to sleep. The notification script derived the level from `energy_now / energy_full_design` (~22% on a 33% health battery) and its "critical battery" branch suspended the machine on every unplug. Now [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity`, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) is event-driven: it wakes on kernel `power_supply` uevents with a 250ms `ADP1/online` fallback tick, so plug/unplug notifications land instantly (measured 80 ms unplug / 262 ms plug on the fallback path). Design, latency budget, tuning knobs and troubleshooting in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#realtime-charger-plugunplug-notifications).
-  5. **Cleaning up an existing machine:** a second, older notifier can still be installed and running — its popup reads "43% is critically low. Device will execute systemctl suspend in 1:56". Run `./battery-fix.sh --dry-run` to see whether it is present, then `./battery-fix.sh` to disarm it and install the fixed trio. See [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#a-second-notifier-can-survive-the-fix-the-countdown-banner).
+  1. [safe-suspend.sh](safe-suspend.sh) checks AC power and battery level before sleeping. If the battery is < 5% and unplugged, suspend is prevented to avoid inrush voltage sag on resume.
+  2. Integrated into [hypridle.conf](hypridle.conf) (idle timeout) and `~/.config/hypr/userprefs.conf` (laptop lid switch).
+  3. **Critical Battery Auto-Suspend (10% with 1-Minute Timer):** When on battery and capacity drops to 10%, an active 60-second countdown notification begins. If the charger is plugged in during the countdown, the action is cancelled immediately with a confirmation notification. If 60 seconds elapse without plugging in, the system initiates `systemctl suspend` to sleep safely in RAM before the laptop runs out of power and dies.
+  4. **Deduplicated Notifications:** Configured `dock = true` in `~/.config/hyde/config.toml` so `batterynotify.sh` delegates charger plug/unplug events to [battery-monitor.sh](battery-monitor.sh) (80 ms uevent detection) while managing capacity thresholds (20% low warning, 10% auto-suspend).
+  5. Calibrated UPower thresholds in `/etc/UPower/UPower.conf` (`PercentageCritical=5`, `PercentageAction=2`).
+  6. **Regression fixed:** [battery-notify.sh](battery-notify.sh) reads `BAT0/capacity` directly, is strictly notify-only, and [battery-monitor.sh](battery-monitor.sh) is event-driven on kernel `power_supply` uevents with a 250ms fallback tick. Design and tuning details in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md#realtime-charger-plugunplug-notifications).
 
 ### 3. Trackpad Calibration & Wayland Browser Acceleration
 - **Problem:** 
@@ -109,5 +110,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 10).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 11).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

@@ -89,6 +89,9 @@ If you install static legacy packages from the AUR that you do not want `yay` to
 1. **Instant Charger Detection:** Apple SMC takes 10-15 seconds to update the `BAT0/status` file. A custom active daemon (`~/.local/bin/battery-monitor.sh`) detects charger plug/unplug events and immediately triggers the notification script. It is event-driven on the kernel `power_supply` uevent stream with a 250 ms `ADP1/online` fallback tick, so the notification lands in the same instant as the physical click — see [Realtime Charger Plug/Unplug Notifications](#realtime-charger-plugunplug-notifications) for the design, the measured latency and the tuning knobs. This daemon is launched on boot via `~/.config/hypr/userprefs.conf` (or the Lua equivalent after the Hyprland 0.56 migration).
 2. **Accurate Hardware States:** The notification script `~/.local/bin/battery-notify.sh` now reads the physical AC pin state directly from `/sys/class/power_supply/ADP1/online` instead of relying on the laggy battery status, guaranteeing 0-latency plug-in notifications, and takes the level from `/sys/class/power_supply/BAT0/capacity` (never from `energy_full_design`).
 3. **Periodic Updates & Clean UI:** The daemon sends one discharging refresh every 600 s while on battery (`REFRESH_INTERVAL`). Standard system symbolic icons (like `battery-full-charging-symbolic`) are used via `notify-send -i` to keep the UI clean without relying on raw text emojis.
+4. **Critical 10% Auto-Suspend (1-Minute Grace Timer):** When discharging and battery level reaches 10%, `~/.local/lib/hyde/batterynotify.sh` starts an urgent 60-second countdown notification (`M:SS`). If the charger is plugged in during the countdown, the suspend action is cancelled and confirmed on screen. If 60 seconds lapse without power, the script triggers `systemctl suspend` via `nohup bash -c` to put the machine to sleep safely, avoiding sudden 0% hardware cutoff and data loss.
+5. **No Duplicate Plug/Unplug Alerts:** `dock = true` is set in `~/.config/hyde/config.toml` so `batterynotify.sh` does not duplicate the real-time charger notifications handled by `battery-monitor.sh`, keeping both daemons operating cooperatively.
+6. **Consistent Dunst Formatting:** Added `[Type-3]` format rule in `dunstrc` for `appname = "HyDE Power"` to match the typography of `HyDE Alert` and `HyDE Notify`.
 
 ---
 
@@ -767,7 +770,7 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 
 ## 3. Power & Sleep Stability (Sudden Shutdowns)
 - **Fixed:** UPower was misconfigured to aggressively shut down the system at 27% battery (`PercentageAction=27`). Thresholds were lowered (`PercentageCritical=5`, `PercentageAction=2`) so it relies on the hardware limit instead.
-- **Fixed:** Created `~/.local/bin/safe-suspend.sh` wrapper and bound it to `~/.config/hypr/hypridle.conf` and `~/.config/hypr/userprefs.conf`. This prevents the laptop from sleeping if battery is < 25% and unplugged, avoiding "dead on wake" scenarios caused by the degraded battery.
+- **Fixed:** Created `~/.local/bin/safe-suspend.sh` wrapper and bound it to `~/.config/hypr/hypridle.conf` and `~/.config/hypr/userprefs.conf`. This guards suspend against voltage sag when battery is < 5% and unplugged, while allowing critical 10% auto-suspend and intentional lid-close sleep to prevent the laptop from dying while running.
 - **Undo:** Revert UPower thresholds in `/etc/UPower/UPower.conf`. Revert `hypridle.conf` and `userprefs.conf` to use `systemctl suspend` directly.
 
 ## 4. Wi-Fi Stack & Eduroam
