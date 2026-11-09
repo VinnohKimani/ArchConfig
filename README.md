@@ -118,14 +118,11 @@ Arch-Configs/
   1. Fixed logical resolution calculation via `awk` floating-point division and clamped columns between 2 and 4.
   2. Restored Arch HyDE's canonical **Quad Style (Style 2)** theme selector with floating cards over a transparent background (`#00000003`), 4-way preview collage on the left (`.quad`), centered titles on the right, and clean selection highlighting without thick surrounding bezels.
 
-### 10. Screenshot Auto-Persistence & macOS Keybindings (Phase 14)
+### 10. Screenshot Auto-Persistence & Dedicated Shortcut (Phase 14)
 - **Problem:** Screenshots were deleted immediately from `/tmp` upon capture when `annotation_enabled = false` was set in `config.toml`, failing to save into `~/Pictures/Screenshots`.
 - **Resolution:**
   1. Refactored `~/.local/lib/hyde/screenshot.sh` to save directly to `~/Pictures/Screenshots/` while piping to `wl-copy` and dispatching desktop preview notifications.
-  2. Added macOS muscle memory shortcuts in `~/.config/hypr/userprefs.conf`:
-     - **`Cmd + Shift + 3`**: Fullscreen screenshot
-     - **`Cmd + Shift + 4`**: Snip / Area selection screenshot
-     - **`Cmd + Shift + 5`**: Freeze & Snip screenshot
+  2. Preserved the standard screenshot keybinding **`Cmd + Shift + S`** (`hyde-shell screenshot s`) and kept **`Cmd + Shift + 1..9`** (including **`Cmd + Shift + 4`**) mapped to native workspace management (`movetoworkspace, 4`).
 
 ---
 

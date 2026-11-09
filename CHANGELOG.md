@@ -136,15 +136,12 @@
   - Enforced column clamping (`3 <= col_count <= 5`) across all selector scripts so cards fit comfortably within visible display boundaries.
   - Added `orientation: vertical;` and `element-text{padding:0.5em;}` to `theme.select.sh` square style so cards display large preview thumbnails on top with readable labels below.
 
-## Phase 14: Screenshot Auto-Persistence & macOS Keybindings (Cmd+Shift+3/4/5)
+## Phase 14: Screenshot Auto-Persistence & Dedicated Shortcut (Cmd+Shift+S)
 - **Screenshot Auto-Save & Persistence (`screenshot.sh`)**:
   - Diagnosed screenshot deletion issue: `~/.local/lib/hyde/screenshot.sh` captured images to `/tmp/hyde_screenshot.png` via `grimblast copysave`. Because `annotation_enabled = false` was set in `~/.config/hyde/config.toml`, the script returned early and executed `rm "$temp_screenshot"` at exit without ever writing to `~/Pictures/Screenshots`.
   - Refactored `take_screenshot()` in `~/.local/lib/hyde/screenshot.sh` to save directly into `"$save_dir/$save_file"` while simultaneously piping to `wl-copy`.
   - Screenshots are now automatically saved to `~/Pictures/Screenshots/` and copied to the clipboard, followed by a Dunst notification displaying the screenshot preview and file path.
-  - Added macOS keybinding compatibility in `~/.config/hypr/userprefs.conf`:
-    - `Cmd + Shift + 3` -> Fullscreen screenshot (`hyde-shell screenshot p`)
-    - `Cmd + Shift + 4` -> Area / Snip screenshot (`hyde-shell screenshot s`)
-    - `Cmd + Shift + 5` -> Freeze & Snip screenshot (`hyde-shell screenshot sf`)
+  - Standardized screenshot shortcut to **`Cmd + Shift + S`** (`$mainMod Shift, S` -> `hyde-shell screenshot s`), preserving **`Cmd + Shift + 1..9`** (including **`Cmd + Shift + 4`**) for standard workspace management (`movetoworkspace, 4`).
 
 ## Phase 15: Canonical Arch HyDE Quad-Card Theme Selector (Style 2)
 - **Restored Authentic Arch HyDE Quad-Card Theme Selector (`theme.select.sh`)**:

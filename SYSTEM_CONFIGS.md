@@ -1063,11 +1063,10 @@ Previously, when `annotation_enabled = false` was set in `config.toml`, `screens
   while piping to `wl-copy --type image/png` simultaneously.
 - When taken, Dunst generates a desktop notification containing the image thumbnail and path.
 
-### Native macOS Shortcuts (`~/.config/hypr/userprefs.conf`)
-- **`Cmd + Shift + 3`**: Fullscreen capture (`hyde-shell screenshot p`).
-- **`Cmd + Shift + 4`**: Snip / Area selection capture (`hyde-shell screenshot s`).
-- **`Cmd + Shift + 5`**: Frozen-screen area snip (`hyde-shell screenshot sf`).
-- Standard HyDE shortcuts (`Cmd + Shift + S`, `Print`) remain fully functional.
+### Dedicated Keybinding
+- **`Cmd + Shift + S`**: Area / Snip screenshot (`hyde-shell screenshot s`). Captures the selected box, automatically copies image data to the clipboard (`wl-copy`), saves the file permanently into `~/Pictures/Screenshots/`, and displays an image preview desktop notification.
+- **`Print`**: Fullscreen capture (`hyde-shell screenshot p`).
+- **`Cmd + Shift + 1..9` (including `Cmd + Shift + 4`)**: Dedicated to moving windows across workspaces (`movetoworkspace, 1..9`), preserving standard workspace window management across the desktop.
 
 ---
 
