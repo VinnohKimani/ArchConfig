@@ -26,7 +26,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-12)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-15)
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
@@ -106,11 +106,32 @@ Arch-Configs/
 - **Power Button:** Configured `/etc/systemd/logind.conf.d/ignore-power-key.conf` (`HandlePowerKey=ignore`) to protect against accidental shutdowns from keyboard brush hits.
 - **Sleep/Wake Latency:** Enabled SPI ACPI wakeup (`SPIT`) via `macbook-wakeup.service` for instant keyboard/trackpad wake, and disabled Bluetooth autosuspend (`btusb.enable_autosuspend=n`) to eliminate 15-second resume hangs (error -110).
 
+### 8. External Displays, Projectors & HDMI Hotplugging (Phase 12)
+- **Problem:** Connecting external displays or projectors resulted in KMS DRM page-flip errors (`Cannot commit when a page-flip is awaiting`) and blank outputs on Intel Iris 6100.
+- **Resolution:**
+  1. Enforced strict integer scaling (`scale = 1`) for all external outputs (`HDMI-A-1`, `HDMI-A-2`, `DP-1`, `DP-2`) in `monitors.conf`, avoiding driver crash loops caused by fractional scaling on legacy Intel DRM.
+  2. Created [display-switch.sh](display-switch.sh) bound to **`Super + P`** (**`Cmd + P`**) with a quick Rofi menu for **Mirror**, **Extend**, **Laptop Only**, **External Only**, and GUI settings (`nwg-displays`).
+
+### 9. Rofi HiDPI Layout Engine & Quad Theming (Phases 13 & 15)
+- **Problem:** Pressing `Cmd + Shift + T` (Theme Select) or `Cmd + Shift + W` (Wallpaper Select) opened an empty dark rectangle due to a fractional scaling math error (`sed "s/\.//"` multiplied 1.6 scale to 16, resulting in a false 16,000px display width and 38 columns that collapsed Rofi's element engine).
+- **Resolution:**
+  1. Fixed logical resolution calculation via `awk` floating-point division and clamped columns between 2 and 4.
+  2. Restored Arch HyDE's canonical **Quad Style (Style 2)** theme selector with floating cards over a transparent background (`#00000003`), 4-way preview collage on the left (`.quad`), centered titles on the right, and clean selection highlighting without thick surrounding bezels.
+
+### 10. Screenshot Auto-Persistence & macOS Keybindings (Phase 14)
+- **Problem:** Screenshots were deleted immediately from `/tmp` upon capture when `annotation_enabled = false` was set in `config.toml`, failing to save into `~/Pictures/Screenshots`.
+- **Resolution:**
+  1. Refactored `~/.local/lib/hyde/screenshot.sh` to save directly to `~/Pictures/Screenshots/` while piping to `wl-copy` and dispatching desktop preview notifications.
+  2. Added macOS muscle memory shortcuts in `~/.config/hypr/userprefs.conf`:
+     - **`Cmd + Shift + 3`**: Fullscreen screenshot
+     - **`Cmd + Shift + 4`**: Snip / Area selection screenshot
+     - **`Cmd + Shift + 5`**: Freeze & Snip screenshot
+
 ---
 
 ## 📖 In-Depth Documentation Index
 
 For complete step-by-step guides, configs, and architectural explanations:
-* **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 12).
+* **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, display scaling, screenshot persistence, and storage maintenance.
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 15).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

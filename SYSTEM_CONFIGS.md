@@ -982,3 +982,116 @@ Option A creates a new standalone partition (`/dev/sda4`) inside the freed space
    ```
 5. You can now store large development files, Docker volumes, or Steam games on `~/Storage`, completely relieving the 92GB root partition.
 
+---
+
+# 🔋 Battery, Power & Notification Architecture
+
+## 1-Minute Grace Period Auto-Suspend at 10%
+
+### Problem & Objective
+On aged MacBook batteries, battery cells exhibit steep non-linear voltage collapse when dropping below 10%. Without an automated, grace-period safety mechanism, laptops abruptly power off, causing filesystem journal corruption, unsaved code loss, and sudden power cuts.
+
+### Architecture & Implementation
+1. **Countdown Timer in `~/.config/hyde/config.toml`**:
+   ```toml
+   [battery.notify]
+   timer = 60
+   interval = 5
+   dock = true
+
+   [battery.notify.threshold]
+   full = 100
+   critical = 10
+   low = 20
+   unplug = 80
+
+   [battery.notify.execute]
+   critical = "systemctl suspend"
+   ```
+2. **Graceful Cancellation & Resumption**:
+   - In `~/.local/lib/hyde/batterynotify.sh`, when battery capacity reaches 10% and AC power is unplugged, an urgent Dunst notification begins a visible `1:00`, `0:59`...`0:01` second-by-second countdown.
+   - If the charger is reconnected at any second during the countdown, the timer aborts immediately and dispatches a *"Low battery timer cancelled"* notification.
+   - If 60 seconds expire without AC power, `systemctl suspend` is triggered via `safe-suspend.sh`, sleeping the machine in RAM safely before voltage collapse.
+3. **Safe Suspend Floor (`safe-suspend.sh`)**:
+   - `MIN_SUSPEND_PERCENT` is set to `5%`. This ensures legitimate critical-battery suspend requests can sleep in S3 RAM while completely preventing sleep attempts at <= 5% where wake-inrush current would trigger instant shutdown.
+
+---
+
+# 🖥️ External Display & Projector Configuration
+
+## Hardware Constraint: Intel Iris 6100 & Fractional Scaling
+On Intel Broadwell Iris 6100 (`MacBookPro12,1` / `crocus` / `i915`), applying fractional scaling (such as `1.5`) across multi-monitor or hotplugged HDMI/DisplayPort connections triggers kernel page-flip lockups:
+```text
+ERR from aquamarine ]: drm: Cannot commit when a page-flip is awaiting
+```
+This causes HDMI monitors and projectors to rapidly connect and disconnect or show black screens.
+
+## Multi-Monitor Rules (`~/.config/hypr/monitors.conf`)
+The internal Retina display runs fractional scaling (`1.6`), while **all external displays are strictly enforced to integer scale `1`**:
+```ini
+# Internal Retina Display
+monitor=eDP-1,2560x1600@60,0x0,1.6
+
+# External Monitors / Projectors (Strict Integer Scaling 1)
+monitor=HDMI-A-1,preferred,auto,1
+monitor=HDMI-A-2,preferred,auto,1
+monitor=DP-1,preferred,auto,1
+monitor=DP-2,preferred,auto,1
+monitor=,preferred,auto,1
+```
+
+## Quick Display Switcher (`Super + P` / `Cmd + P`)
+The script `~/.local/bin/display-switch.sh` (mirrored in `display-switch.sh`) offers instant projection presets via Rofi:
+- **Mirror Internal Display (`mirror, eDP-1`)**: Clones the 2560x1600 screen onto external projectors/TVs.
+- **Extend Desktop**: Side-by-side dual-screen layout with auto-positioning.
+- **External Only**: Disables internal panel for clamshell/docked desk usage.
+- **Laptop Only**: Turns off external outputs.
+- **GUI Display Settings**: Launches `nwg-displays` for interactive resolution/rate configuration.
+
+---
+
+# 📸 Screenshot Engine & Keybindings
+
+## Auto-Save & Clipboard Integration
+Previously, when `annotation_enabled = false` was set in `config.toml`, `screenshot.sh` captured images to `/tmp/hyde_screenshot.png`, copied them to clipboard, and deleted the temporary file upon exit—saving nothing to disk.
+
+### Implementation in `~/.local/lib/hyde/screenshot.sh`
+- Modified `take_screenshot()` to save directly into:
+  ```bash
+  $HOME/Pictures/Screenshots/<YYMMDD_HHhMMmSSs>_screenshot.png
+  ```
+  while piping to `wl-copy --type image/png` simultaneously.
+- When taken, Dunst generates a desktop notification containing the image thumbnail and path.
+
+### Native macOS Shortcuts (`~/.config/hypr/userprefs.conf`)
+- **`Cmd + Shift + 3`**: Fullscreen capture (`hyde-shell screenshot p`).
+- **`Cmd + Shift + 4`**: Snip / Area selection capture (`hyde-shell screenshot s`).
+- **`Cmd + Shift + 5`**: Frozen-screen area snip (`hyde-shell screenshot sf`).
+- Standard HyDE shortcuts (`Cmd + Shift + S`, `Print`) remain fully functional.
+
+---
+
+# 🎨 Theme & Wallpaper Selectors (HiDPI & Quad Style)
+
+## Root Cause of Rofi Blank Box Collapse
+In `~/.local/lib/hyde/theme.select.sh`, `wallpaper/select.sh`, and `rofiselect.sh`, monitor scaling calculation stripped the dot from floating point scale `1.6` (`sed "s/\.//"` $\to 16$) and ran integer arithmetic:
+```bash
+mon_x_res=$((mon_x_res * 100 / mon_scale)) # 2560 * 100 / 16 = 16,000px
+```
+This inflated width caused `col_count` to be computed as 22 or 38 columns. Because `selector.rasi` enforces `fixed-columns: true; lines: 1;`, Rofi divided the 1600px screen into 22 tiny 72px slots, which could not fit 200px+ cards, collapsing the element layout to 0 and displaying a completely blank dark box.
+
+### Math Fix
+Replaced integer math with floating-point `awk` division:
+```bash
+mon_x_res=$(awk -v w="$mon_w" -v s="$mon_s" 'BEGIN { printf "%d", (s > 0 ? w / s : w) }')
+```
+and clamped column bounds (`2 <= col_count <= 4`).
+
+## Canonical Arch HyDE Quad-Card Selector (Style 2)
+Restored the authentic Arch HyDE theme selector layout:
+- **Transparent Backdrop**: `window{width:100%; background-color:#00000003;}` lets the desktop wallpaper blur shine through rather than drawing a massive black box.
+- **Quad 4-in-1 Preview**: Uses `.quad` thumbnails representing wallpaper, color palette, terminal, and window aesthetics on the left half of the card (`border-radius: ${elem_border}px 0px 0px ${elem_border}px`).
+- **Right-Aligned Theme Title**: Displays the theme name clearly on the right half.
+- **Selection Highlight**: When focused, the entire card highlights cleanly in `@select-bg` without chunky surrounding borders.
+- **Persistence**: Saved `ROFI_THEME_STYLE="2"` in `~/.local/lib/hyde/theme.select.sh` and `~/.local/state/hyde/staterc`.
+

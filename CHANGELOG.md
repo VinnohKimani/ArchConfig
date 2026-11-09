@@ -124,3 +124,32 @@
     - **GUI Display Settings**: Opens `nwg-displays`.
 - **Clean Aesthetic Wallpaper**:
   - Switched active wallpaper from `hanged_man_tree.jpg` to the scenic landscape `firewatch.jpg` via `awww`.
+
+## Phase 13: Rofi Theme & Wallpaper Selector Blank Screen Fix (Cmd+Shift+T & Cmd+Shift+W)
+- **Diagnosed Blank Selector Box in Rofi**:
+  - Pressing `Cmd + Shift + T` (`hyde-shell themeselect`) or `Cmd + Shift + W` (`hyde-shell wallpaper -SG`) popped up a huge dark container with 0 elements rendered.
+  - Root cause: In `~/.local/lib/hyde/theme.select.sh`, `wallpaper/select.sh`, and `rofiselect.sh`, monitor scaling calculation stripped the dot from floating point scale `1.6` (`sed "s/\.//"`) yielding `16`, and multiplied resolution by `100 / 16` (`2560 * 6.25 = 16,000px`).
+  - This inflated width caused `col_count` to be computed as 22 or 38 columns without a safety clamp.
+  - Because `selector.rasi` enforces `fixed-columns: true`, Rofi divided the 1600px screen into 22 tiny 72px slots, which could not fit the 230px preview cards, collapsing the element layout and rendering zero items.
+- **Resolution & Fixes**:
+  - Fixed resolution calculation in `theme.select.sh`, `wallpaper/select.sh`, and `rofiselect.sh` to use floating-point division (`awk 'BEGIN { printf "%d", w / s }'`), accurately yielding the true logical width (1600px).
+  - Enforced column clamping (`3 <= col_count <= 5`) across all selector scripts so cards fit comfortably within visible display boundaries.
+  - Added `orientation: vertical;` and `element-text{padding:0.5em;}` to `theme.select.sh` square style so cards display large preview thumbnails on top with readable labels below.
+
+## Phase 14: Screenshot Auto-Persistence & macOS Keybindings (Cmd+Shift+3/4/5)
+- **Screenshot Auto-Save & Persistence (`screenshot.sh`)**:
+  - Diagnosed screenshot deletion issue: `~/.local/lib/hyde/screenshot.sh` captured images to `/tmp/hyde_screenshot.png` via `grimblast copysave`. Because `annotation_enabled = false` was set in `~/.config/hyde/config.toml`, the script returned early and executed `rm "$temp_screenshot"` at exit without ever writing to `~/Pictures/Screenshots`.
+  - Refactored `take_screenshot()` in `~/.local/lib/hyde/screenshot.sh` to save directly into `"$save_dir/$save_file"` while simultaneously piping to `wl-copy`.
+  - Screenshots are now automatically saved to `~/Pictures/Screenshots/` and copied to the clipboard, followed by a Dunst notification displaying the screenshot preview and file path.
+  - Added macOS keybinding compatibility in `~/.config/hypr/userprefs.conf`:
+    - `Cmd + Shift + 3` -> Fullscreen screenshot (`hyde-shell screenshot p`)
+    - `Cmd + Shift + 4` -> Area / Snip screenshot (`hyde-shell screenshot s`)
+    - `Cmd + Shift + 5` -> Freeze & Snip screenshot (`hyde-shell screenshot sf`)
+
+## Phase 15: Canonical Arch HyDE Quad-Card Theme Selector (Style 2)
+- **Restored Authentic Arch HyDE Quad-Card Theme Selector (`theme.select.sh`)**:
+  - Replaced the custom square thumbnail layout with Arch HyDE's canonical **Quad Style (Style 2)** theme selector.
+  - Features floating cards against a transparent/blurred screen background (`#00000003`) instead of a solid dark rectangular sheet.
+  - Each floating card presents the theme's 4-way collage preview thumbnail on the left (`.quad`) with rounded flush corners, and the theme name centered on the right.
+  - Active selection highlights the entire card smoothly in `@select-bg` without any awkward padding or surrounding blue bezels.
+  - Set default `ROFI_THEME_STYLE="2"` in both `~/.local/lib/hyde/theme.select.sh` and `~/.local/state/hyde/staterc`.
