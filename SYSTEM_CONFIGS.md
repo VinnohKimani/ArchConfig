@@ -470,6 +470,27 @@ This leaves the `.conf` configuration active while cleanly suppressing the banne
 
 ---
 
+## HDMI External Displays & Projection Modes (Super + P)
+
+### Symptoms
+1. **KMS Page-Flip Failure & Flapping:** When plugging in an external HDMI monitor or projector (e.g., Epson PJ), the connection flapped continuously (connecting, erroring, and dropping).
+2. **Empty Desktop / Missing Windows:** Connecting HDMI caused windows and bars to disappear from the laptop screen, leaving only an empty wallpaper.
+3. **Squished / Distorted Resolution:** Projectors reporting 1024x768 were scaled awkwardly.
+
+### Root Causes
+- **Fractional Scale on External Displays:** `~/.config/hypr/monitors.conf` had `monitor=,preferred,auto,1.5`. Applying fractional `1.5` scaling to non-integer resolutions (like 1024x768 or 1080p) caused KMS driver buffer page-flip commit failures (`ERR from aquamarine ]: drm: Cannot commit when a page-flip is awaiting`), triggering reconnect loops.
+- **Unintended Desktop Extension:** Hyprland automatically placed the external display to the right (`auto`), shifting focus and leaving the laptop on an empty workspace.
+
+### Resolutions
+1. **Integer Scaling in `monitors.conf`:** Enforced `scale = 1` across `HDMI-A-1`, `HDMI-A-2`, `DP-1`, and `DP-2` (`monitor=HDMI-A-2,preferred,auto,1`).
+2. **Display Switcher Menu (`Super + P`):** Created `~/.local/bin/display-switch.sh` bound to `Super + P` (`$mainMod, P`) in `~/.config/hypr/userprefs.conf`. It allows instant one-click switching between:
+   - **Mirror Screen:** Clones internal display directly onto the external display (`mirror, eDP-1`) for presentations.
+   - **Extend Desktop:** Standard dual-monitor setup.
+   - **Laptop Only** / **External Only:** Toggles individual screens.
+   - **Display Settings:** Launches `nwg-displays`.
+
+---
+
 ## Desktop UI & Notifications (Waybar, Dunst, Screenshots)
 
 ### Waybar

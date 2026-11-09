@@ -26,10 +26,12 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-11)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-12)
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
+├── monitors.conf              # Multi-monitor & HiDPI configuration (integer scale 1 for external displays)
+├── display-switch.sh          # Quick projector/display mode switcher (Super + P: Mirror, Extend, Single)
 ├── hypridle.conf              # Screen dim, lock screen, DPMS, and safe-suspend listeners
 ├── kbd_brightnesscontrol.sh   # SMC keyboard backlight increment/decrement helper script
 ├── battery-monitor.sh         # Event-driven ADP1 watcher, 250ms fallback (notify only, never suspends)
@@ -110,5 +112,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 11).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 12).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

@@ -108,3 +108,19 @@
   - Added `[Type-3]` rule for `appname = "HyDE Power"` in `dunst.sh`, `~/.local/share/wallbash/scripts/dunst.sh`, and `~/.config/dunst/dunstrc` to ensure battery notifications match the bold styling of other system dialogs.
 - **Safe-Suspend Threshold Calibration**:
   - Lowered `MIN_SUSPEND_PERCENT` from 10% to 5% in `safe-suspend.sh` (and `~/.local/bin/safe-suspend.sh`) so closing the lid or idle timeout below 10% allows the machine to suspend safely to RAM rather than blocking suspend and dying while awake.
+
+## Phase 12: HDMI External Display Stability, Mirror/Extend Switcher (`Super + P`) & Wallpaper Fix
+- **HDMI Flapping & KMS Page-Flip Failure Fix**:
+  - Diagnosed `hyprland.log` and `journalctl`: Connecting an external HDMI projector (`Seiko Epson PJ`) triggered `drm: Cannot commit when a page-flip is awaiting` and continuous connect/disconnect loops.
+  - Root cause: `monitors.conf` had `monitor=,preferred,auto,1.5`. The fractional scale `1.5` on the projector's `1024x768` resolution created fractional KMS dimensions (`682.66px`), crashing the DRM page-flip pipeline.
+  - Fixed `monitors.conf` to enforce integer scale `1` (`1.0`) across `HDMI-A-1`, `HDMI-A-2`, `DP-1`, and `DP-2`.
+- **Display Mode Switcher (`Super + P`)**:
+  - Implemented `~/.local/bin/display-switch.sh` and tracked in `Arch-Configs/display-switch.sh`.
+  - Bound to `Super + P` (`$mainMod, P`) in `~/.config/hypr/userprefs.conf`.
+  - Provides a quick Rofi menu with options for:
+    - **Mirror Screen**: Clones internal display directly onto the external projector/display (`mirror, eDP-1`).
+    - **Extend Desktop**: Side-by-side dual-screen layout.
+    - **Laptop Only** / **External Only**: Single-display modes.
+    - **GUI Display Settings**: Opens `nwg-displays`.
+- **Clean Aesthetic Wallpaper**:
+  - Switched active wallpaper from `hanged_man_tree.jpg` to the scenic landscape `firewatch.jpg` via `awww`.
