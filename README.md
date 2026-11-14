@@ -26,7 +26,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 Arch-Configs/
 ├── README.md                  # Master repository documentation (this file)
 ├── SYSTEM_CONFIGS.md          # Comprehensive architectural reference & setup guide
-├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-15)
+├── CHANGELOG.md               # Chronological log of system changes & modifications (Phases 1-16)
 ├── config.jsonc               # Waybar / HyDE system status configuration
 ├── macos.jsonc                # macOS-inspired styling configuration for Waybar
 ├── user-style.css             # Custom desktop & panel CSS overrides
@@ -88,7 +88,7 @@ Arch-Configs/
   - Pacman cache pruned with `pacman -Sc` / `paccache -r`.
   - Systemd journals capped at 100MB with `journalctl --vacuum-size=100M`.
   - Unneeded debug symbols (`*-debug`) pruned periodically.
-- **Dual-Boot Expansion (Option A):** Documented the safest path to reclaim storage from macOS Sequoia. Shrinking the APFS container in macOS creates free space before the Arch partition, which is formatted as `/dev/sda4` and mounted as extra data storage without modifying existing root filesystem sectors.
+- **Dual-Boot Expansion (100GB $\rightarrow$ 220GB):** Reclaimed `120GB` from the macOS Monterey APFS container (`disk0s2` shrunk from `399.6GB` to `280.0GB`). Documented both **Method B (Unified `220GB` `/` Root Partition via Live USB `sfdisk --move-data` + `resize2fs`)** and **Method A (Dedicated `/dev/sda4` Secondary Partition)**.
   - Full protocol documented in [SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md).
 
 ### 5. Hyprland 0.56 Desktop Stability & System Updates
@@ -130,5 +130,5 @@ Arch-Configs/
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, display scaling, screenshot persistence, and storage maintenance.
-* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 15).
+* **[CHANGELOG.md](CHANGELOG.md)** — Detailed history of system modifications (Phases 1 through 16).
 * **[eduroam-jkuat/README.md](eduroam-jkuat/README.md)** — Step-by-step enterprise Wi-Fi installation, certificate validation, and diagnostic tool documentation.

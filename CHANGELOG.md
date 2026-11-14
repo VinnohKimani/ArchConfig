@@ -150,3 +150,12 @@
   - Each floating card presents the theme's 4-way collage preview thumbnail on the left (`.quad`) with rounded flush corners, and the theme name centered on the right.
   - Active selection highlights the entire card smoothly in `@select-bg` without any awkward padding or surrounding blue bezels.
   - Set default `ROFI_THEME_STYLE="2"` in both `~/.local/lib/hyde/theme.select.sh` and `~/.local/state/hyde/staterc`.
+
+## Phase 16: Dual-Boot Storage Expansion (100GB $\rightarrow$ 220GB Unified Root) & Live USB Setup
+- **macOS Monterey APFS Container Resize (`disk0s2`)**:
+  - Executed live APFS shrink (`diskutil apfs resizeContainer disk0s2 280g`), passing `fsck_apfs` verification with exit code 0 and reducing `disk0s2` from `399.6 GB` to `280.0 GB`.
+  - Liberated **`119.6 GB` of unallocated free space** directly before `/dev/sda3` (`disk0s3`, `100.4 GB` Arch Linux root).
+- **Bootable Arch Linux Live USB Preparation (`ARCH_202607`)**:
+  - Formatted external 32GB USB drive (`/dev/disk4`) as GPT `FAT32` with volume label `ARCH_202607` and extracted `archlinux-2026.07.01-x86_64.iso` (`EFI/BOOT`, `loader`, `arch`) with `archisobasedir=arch archisosearchabel=ARCH_202607` for native MacBook UEFI boot.
+- **Unified 220GB Root Merge Procedure Documented (`Option B`)**:
+  - Documented the exact Live USB commands (`e2fsck -f /dev/sda3`, `echo '-,+' | sfdisk --move-data /dev/sda -N 3`, `parted /dev/sda resizepart 3 100%`, `resize2fs /dev/sda3`) in `SYSTEM_CONFIGS.md` and `README.md` to shift `/dev/sda3` left across the `119.6 GB` gap and expand it into a single `220.0 GB` `ext4` root partition while preserving `UUID` and `PARTUUID`.

@@ -907,46 +907,80 @@ sudo pacman -R linux-firmware-nvidia
 
 ---
 
-# 💾 Dual-Boot Storage Expansion (macOS Sequoia & Arch Linux)
+# 💾 Dual-Boot Storage Expansion (macOS Monterey & Arch Linux: 100GB $\rightarrow$ 220GB)
 
 ## Partition Layout & Storage Constraints
 
-The internal 512GB Apple SSD (`/dev/sda`) is partitioned as follows:
-- `/dev/sda1` (200MB): EFI System Partition (bootloader / ESP).
-- `/dev/sda2` (~400GB): Apple APFS Container hosting macOS Sequoia (`apfs`).
-- `/dev/sda3` (~100GB): Arch Linux root filesystem (`ext4`, mounted at `/`, ~89% full).
+The internal 500.3GB Apple SSD (`/dev/sda` in Linux, `/dev/disk0` in macOS) was originally partitioned as:
+- `/dev/sda1` (`disk0s1`, 209.7MB): EFI System Partition (bootloader / ESP).
+- `/dev/sda2` (`disk0s2`, 399.6GB $\rightarrow$ shrunk to **280.0GB**): Apple APFS Container hosting macOS Monterey (`apfs`).
+- `[UNALLOCATED FREE SPACE]` (**119.6GB**): Liberated from `disk0s2` via `diskutil apfs resizeContainer disk0s2 280g`.
+- `/dev/sda3` (`disk0s3`, 100.4GB $\rightarrow$ expanding to **220.0GB**): Arch Linux root filesystem (`ext4`, mounted at `/`).
 
-### Technical Limitations
-1. **APFS Resizing in Linux:** The Linux kernel and open-source userspace tools cannot safely resize or shrink Apple APFS containers. Shrinking the APFS container **must** be executed from within macOS Sequoia.
-2. **Partition Geometry:** Because `/dev/sda3` (Arch) sits at the very end of the physical drive (sectors `780931072` to `977104895`), shrinking `/dev/sda2` creates unallocated space **between** `sda2` and `sda3`:
+### Technical Considerations
+1. **APFS Resizing in macOS:** Shrinking the APFS container must be executed from within macOS (`diskutil apfs resizeContainer disk0s2 280g`).
+2. **Partition Geometry:** Because `/dev/sda3` (Arch) sits at the end of the physical drive, shrinking `/dev/sda2` creates `119.6GB` of unallocated space **between** `sda2` and `sda3`:
    ```text
-   [ sda1 (EFI) ] [ sda2 (macOS APFS shrunk) ] [ FREE SPACE GAP ] [ sda3 (Arch root) ]
+   [ sda1 (EFI: 209.7MB) ] [ sda2 (macOS APFS: 280.0GB) ] [ FREE SPACE: 119.6GB ] [ sda3 (Arch root: 100.4GB) ]
    ```
-3. To expand `sda3` directly, `sda3` would have to be physically moved to the left, which requires booting into a live USB and moving ~92GB of filesystem blocks.
+3. To merge the `119.6GB` directly into `/dev/sda3` for a single unified **220GB** root partition (**Option B**), `/dev/sda3` must be shifted left to the start of the unallocated gap and expanded while unmounted from a **Live USB** (`ARCH_202607`).
 
 ---
 
-## Option A: Dedicated Secondary Data Partition (Recommended)
+## Option B: Unified 220GB Root Partition via Live USB (Active Choice)
 
-Option A creates a new standalone partition (`/dev/sda4`) inside the freed space gap without moving the root partition, eliminating risk to the existing Arch installation.
+Option B shifts `/dev/sda3` left across the `119.6GB` unallocated gap and grows the `ext4` filesystem to **220.0GB** as one single `/` root partition while preserving the partition `UUID` and `PARTUUID` (so `/etc/fstab` and the EFI bootloader work with zero changes).
 
 ### Step-by-Step Procedure
 
-#### Phase 1: Shrink macOS APFS Container in macOS Sequoia
-1. Restart your MacBook and hold `Option` (Alt) to boot into macOS Sequoia.
-2. Open **Terminal** in macOS.
-3. Check your disk identifiers:
-   ```bash
-   diskutil list
-   ```
-   Identify your APFS container (usually `disk0s2`).
-4. Shrink the container to your desired target size (for example, shrinking from 400GB to 300GB to liberate 100GB of space):
-   ```bash
-   sudo diskutil apfs resizeContainer disk0s2 300g
-   ```
-5. Confirm the resize completes successfully, then restart and boot back into **Arch Linux**.
+#### Phase 1: Shrink macOS APFS Container (Completed in macOS Monterey)
+```bash
+diskutil apfs resizeContainer disk0s2 280g
+```
+Resulting layout verified via `diskutil list`:
+- `disk0s1`: `209.7 MB` (EFI)
+- `disk0s2`: `280.0 GB` (Apple_APFS)
+- `(free space)`: `119.6 GB`
+- `disk0s3`: `100.4 GB` (Arch Linux `ext4`)
 
-#### Phase 2: Create and Format the New Partition in Arch Linux
+#### Phase 2: Boot Arch Linux Live USB (`ARCH_202607`) & Merge `/dev/sda3` to 220GB
+1. **Keep the MagSafe charger connected** the entire time.
+2. Insert the prepared `ARCH_202607` Live USB, restart the MacBook while holding **`Option` (`Alt`)**, and select **EFI Boot** (the orange USB icon).
+3. Once at the `root@archiso ~ #` prompt, verify that `/dev/sda3` is **not** mounted and inspect exact sector boundaries:
+   ```bash
+   lsblk /dev/sda
+   parted /dev/sda unit s print free
+   ```
+4. Run a pre-flight filesystem check on `/dev/sda3` to ensure clean metadata before moving blocks:
+   ```bash
+   e2fsck -f /dev/sda3
+   ```
+5. Shift `/dev/sda3` left to the beginning of the `119.6GB` free space using `sfdisk --move-data` (this safely copies all filesystem blocks to the new start sector and updates the GPT table while keeping the exact same `UUID` and `PARTUUID`):
+   ```bash
+   echo '-,+' | sfdisk --move-data /dev/sda -N 3
+   ```
+   *(Note: Moving ~100GB on the internal Apple SSD takes ~10–20 minutes. Wait until it prints that the partition table has been altered.)*
+6. Expand `/dev/sda3` to fill 100% of the remaining space to the end of the drive, then grow the `ext4` filesystem:
+   ```bash
+   parted /dev/sda resizepart 3 100%
+   e2fsck -f /dev/sda3
+   resize2fs /dev/sda3
+   ```
+7. Verify the unified **220GB** partition and reboot into Arch Linux:
+   ```bash
+   lsblk -f /dev/sda
+   reboot
+   ```
+
+---
+
+## Option A: Dedicated Secondary Data Partition (Alternative / Zero-Move Method)
+
+Option A creates a standalone partition (`/dev/sda4`) inside the freed space gap without moving the root partition.
+
+### Step-by-Step Procedure
+
+#### Phase 1: Create and Format `/dev/sda4` in Arch Linux
 1. Verify the unallocated space using `parted`:
    ```bash
    sudo parted /dev/sda print free
@@ -962,7 +996,7 @@ Option A creates a new standalone partition (`/dev/sda4`) inside the freed space
    sudo mkfs.ext4 -L Storage /dev/sda4
    ```
 
-#### Phase 3: Mount and Automate in `/etc/fstab`
+#### Phase 2: Mount and Automate in `/etc/fstab`
 1. Create a mount point in your home directory (or wherever preferred):
    ```bash
    mkdir -p ~/Storage
@@ -980,7 +1014,6 @@ Option A creates a new standalone partition (`/dev/sda4`) inside the freed space
    sudo mount -a
    sudo chown -R vinnoh:vinnoh ~/Storage
    ```
-5. You can now store large development files, Docker volumes, or Steam games on `~/Storage`, completely relieving the 92GB root partition.
 
 ---
 
