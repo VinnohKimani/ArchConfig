@@ -218,3 +218,20 @@
   - Added `Super + Ctrl + Space` (`Cmd + Ctrl + Space`) for the emoji picker (`hyde.sh.menu.emoji()`), complementing `Super + comma`.
 - **Screenshot Image Thumbnail Notification**:
   - Updated `screenshot.sh` so that capturing a screenshot without the Satty annotation GUI immediately generates a Dunst notification displaying the captured screenshot as a thumbnail (`-i "$target_file"`).
+
+## Phase 22: Hyprlock Crash Fix, PAM Resolution, Layout Switcher Fix & New Lock Layouts
+- **Hyprlock Crash & PAM Fix**:
+  - Diagnosed crash reason: `/etc/pam.d/hyprlock` was configured with `auth include login`, which fails under Wayland desktop sessions because `pam_nologin` and `system-local-login` expect a root TTY console (`pam_unix: conversation failed`).
+  - Installed fixed `/etc/pam.d/hyprlock` using `include system-auth` for all PAM management groups (auth, account, password, session), preventing crashes on unlock.
+- **Hyprlock Layout Selector Fix (`hyprlock.sh`)**:
+  - Fixed Rofi layout picker in `~/.local/lib/hyde/hyprlock.sh`: removed `-on-selection-changed` live hyprlock test trigger that spawned a full-screen screen locker on top of Rofi and froze the session.
+- **Added 3 New Custom Lock Layouts**:
+  - `macOS Sonoma.conf`: Apple glassmorphism layout with frosted acrylic blur, thin clock, date, circular avatar with border, glass password pill, and battery widget.
+  - `Minimalist Clock.conf`: High-contrast modern layout with huge stacked hours/minutes in Wallbash accent colors and floating auth pill.
+  - `Cyberpunk HUD.conf`: Terminal-inspired sci-fi layout with system status, neon glowing input border, and live uptime/battery readout.
+- **Verified Keybindings**:
+  - `Cmd + Shift + U` (`Super + Shift + U`): Opens Rofi lock layout selector with all 11 layouts.
+  - `Cmd + L` (`Super + L`): Immediately locks the session.
+  - `Cmd + K`: Opens Keybindings Hint cheat-sheet.
+  - `Cmd + Ctrl + Space` / `Cmd + ,`: Opens Emoji picker.
+  - `Cmd + Shift + K`: Opens Calculator.

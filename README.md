@@ -57,6 +57,12 @@ Arch-Configs/
 ├── brcmfmac.conf              # Modprobe config disabling buggy Broadcom Wi-Fi offload (fixes 5GHz drops)
 ├── mac-rand.conf              # NetworkManager config disabling scan MAC randomization
 ├── ignore-power-key.conf      # systemd-logind config protecting against accidental power-key hits
+├── hyprlock.sh                # HyDE hyprlock manager script with layout switcher fix
+├── hyprlock.pam               # System PAM configuration for hyprlock using system-auth
+├── hyprlock/                  # Custom hyprlock layouts
+│   ├── macOS Sonoma.conf      # Apple glassmorphism layout with thin clock, avatar & battery
+│   ├── Minimalist Clock.conf  # High-contrast bold stacked time with Wallbash accents
+│   └── Cyberpunk HUD.conf     # Monospace sci-fi terminal layout with neon glowing border
 ├── apply-system-fixes.sh      # Automated root installer for ZRAM, swapfile, sysctl & woofers
 ├── apply-hardware-tweaks.sh   # Automated root installer for SPI wake, Bluetooth, Wi-Fi & power key
 └── eduroam-jkuat/             # Enterprise WPA-EAP Wi-Fi suite for university access

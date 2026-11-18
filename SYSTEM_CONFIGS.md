@@ -481,6 +481,8 @@ The system runs Hyprland `0.57.2-1` natively with LuaRocks and the HyDE Lua fram
    - `Super + K` (or `Super + /`) $\rightarrow$ Keybindings Hint cheat-sheet
    - `Super + Ctrl + Space` (or `Super + ,`) $\rightarrow$ Emoji picker (macOS & HyDE shortcuts)
    - `Super + Shift + K` $\rightarrow$ Calculator (`rofi-calc`)
+   - `Super + Shift + U` $\rightarrow$ Select Hyprlock layout menu (11 layouts)
+   - `Super + L` $\rightarrow$ Lock screen
    - `Super + N` / `Super + Shift + N` $\rightarrow$ Notification dismiss all / history pop
 
 ---
