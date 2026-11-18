@@ -144,11 +144,11 @@ Arch-Configs/
   1. Fixed logical resolution calculation via `awk` floating-point division and clamped columns between 2 and 4.
   2. Restored Arch HyDE's canonical **Quad Style (Style 2)** theme selector with floating cards over a transparent background (`#00000003`), 4-way preview collage on the left (`.quad`), centered titles on the right, and clean selection highlighting without thick surrounding bezels.
 
-### 10. Instant Snip-to-Clipboard (No Preview Window)
-- **Problem:** Capturing screenshots opened a large Satty/Swappy preview window obstructing the screen and requiring extra clicks to close.
+### 10. Instant Snip-to-Clipboard & Image Thumbnail Notification
+- **Problem:** Capturing screenshots previously opened a large Satty/Swappy preview window obstructing the screen and requiring extra clicks to close.
 - **Resolution:**
   1. Enforced `SCREENSHOT_ANNOTATION_ENABLED=false` in [screenshot.sh](screenshot.sh) and `[screenshot] annotation_enabled = false` in `~/.config/hyde/config.toml`.
-  2. Pressing **`Cmd + Shift + S`** (`Super + Shift + S`) immediately copies the selected area to the Wayland clipboard and silently saves a PNG timestamp copy in `~/Pictures/Screenshots/` with a non-intrusive Dunst desktop notification.
+  2. Pressing **`Cmd + Shift + S`** (`Super + Shift + S`) immediately copies the selected area to the Wayland clipboard, auto-saves to `~/Pictures/Screenshots/`, and generates a clean Dunst notification displaying the captured screenshot as an image thumbnail icon.
 
 ### 11. Cirrus CS4208 Dual-Speaker & Woofer Activation (Audio Hardware Fix)
 - **Problem:** Internal speakers sounded thin and tinny because the kernel audio driver only routed audio to the upper tweeters (`Pin 0x12` / `DAC 0x03`), leaving the bass woofers (`Pin 0x13` / `DAC 0x04`) asleep in power state `D3` and muted.

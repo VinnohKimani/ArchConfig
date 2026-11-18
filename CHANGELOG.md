@@ -209,3 +209,12 @@
 - **Dirty Page Flush & Cache Reclamation**:
   - Tuned `vm.dirty_ratio = 10` and `vm.dirty_background_ratio = 5` to stop 1.5GB dirty page accumulation stalls that caused 2-4 second desktop freezes during builds or file writes.
   - Set `vm.vfs_cache_pressure = 100` for balanced metadata reclaim.
+
+## Phase 21: Rofi-Calc Fix, Keybindings Hint (`Cmd + K`), Emoji Picker & Screenshot Thumbnail Preview
+- **Rofi Calculator Fix**:
+  - Installed `rofi-calc` and `libqalculate` from official Arch repositories, resolving the `Mode calc is not found` error when opening the calculator.
+- **Keybinding Enhancements (`hyprland.lua`)**:
+  - Bound `Super + K` (`Cmd + K`) to `keybinds_hint`, providing an intuitive cheat-sheet launcher alongside `Super + /`.
+  - Added `Super + Ctrl + Space` (`Cmd + Ctrl + Space`) for the emoji picker (`hyde.sh.menu.emoji()`), complementing `Super + comma`.
+- **Screenshot Image Thumbnail Notification**:
+  - Updated `screenshot.sh` so that capturing a screenshot without the Satty annotation GUI immediately generates a Dunst notification displaying the captured screenshot as a thumbnail (`-i "$target_file"`).

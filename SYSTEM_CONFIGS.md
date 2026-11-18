@@ -477,7 +477,10 @@ The system runs Hyprland `0.57.2-1` natively with LuaRocks and the HyDE Lua fram
    - `F10` / `F11` / `F12` $\rightarrow$ Volume mute / down / up with auto-unmute
    - `F3` $\rightarrow$ Mission Control (Workspace overview)
    - `F4` $\rightarrow$ Launchpad (Application launcher)
-   - `Super + Shift + S` $\rightarrow$ Instant snip to clipboard and `~/Pictures/Screenshots/` (Satty preview disabled)
+   - `Super + Shift + S` $\rightarrow$ Instant snip to clipboard and `~/Pictures/Screenshots/` with image thumbnail notification
+   - `Super + K` (or `Super + /`) $\rightarrow$ Keybindings Hint cheat-sheet
+   - `Super + Ctrl + Space` (or `Super + ,`) $\rightarrow$ Emoji picker (macOS & HyDE shortcuts)
+   - `Super + Shift + K` $\rightarrow$ Calculator (`rofi-calc`)
    - `Super + N` / `Super + Shift + N` $\rightarrow$ Notification dismiss all / history pop
 
 ---
@@ -512,9 +515,9 @@ The system runs Hyprland `0.57.2-1` natively with LuaRocks and the HyDE Lua fram
 ### Dunst Notifications
 - **Responsive Width & Padding:** By default, Dunst notifications were squishing text on long lines. Updated `~/.config/dunst/dunst.conf` to use a dynamic width (`width = (0, 300)` or `width = 300`) and shrunk icon sizes (`min_icon_size = 32`, `max_icon_size = 48`) to prioritize text readability. *(Note: Changes must be compiled using `hyde-shell wallbash dunst`)*.
 
-### Screenshot Annotations (Swappy)
-- **Direct to Clipboard:** By default, HyDE opens a screenshot annotation tool (Satty/Swappy) after capturing. This was disabled to allow instant "snip to clipboard" functionality.
-- **Fix:** Added `[screenshot] annotation_enabled = false` to `~/.config/hyde/config.toml`.
+### Screenshot Capture & Thumbnail Notification
+- **Direct to Clipboard with Thumbnail Preview:** By default, HyDE opens an interactive annotation editor (Satty/Swappy). This was streamlined: pressing `Super + Shift + S` instantly copies the selected region to the Wayland clipboard, auto-saves to `~/Pictures/Screenshots/`, and displays an interactive Dunst notification containing the captured screenshot image thumbnail (`-i "$target_file"`).
+- **Configuration:** Enforced in `~/.config/hyde/config.toml` (`[screenshot] annotation_enabled = false`) and `~/.local/lib/hyde/screenshot.sh`.
 
 ### Hyprland Keybinding Conflicts
 
