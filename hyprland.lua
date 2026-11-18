@@ -247,3 +247,11 @@ hl.bind(MOD .. " + K", hl.dsp.exec_cmd(hyde.sh.menu.binds()), {
 hl.bind(MOD .. " + CTRL + space", hl.dsp.exec_cmd(hyde.sh.menu.emoji()), {
     description = "[Launcher|Rofi menus] emoji picker (macOS shortcut)",
 })
+
+-- L. Lock Screen & Lock Layout Selector
+hl.bind(MOD .. " + L", hl.dsp.exec_cmd("hyde-shell lock-session"), {
+    description = "[Session] lock screen",
+})
+hl.bind(MOD .. " + SHIFT + U", hl.dsp.exec_cmd("hyde-shell hyprlock --select"), {
+    description = "[Theming and Wallpaper] select Hyprlock layout",
+})
