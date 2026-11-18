@@ -1,0 +1,19 @@
+# Configuration file for HyDE
+"$schema" = "https://raw.githubusercontent.com/HyDE-Project/HyDE/refs/heads/master/Configs/.local/share/hyde/schema/config.toml.json"
+
+[screenshot]
+annotation_enabled = false
+
+[battery.notify]
+timer = 60
+interval = 5
+dock = true
+
+[battery.notify.threshold]
+full = 100
+critical = 10
+low = 20
+unplug = 80
+
+[battery.notify.execute]
+critical = "systemctl suspend"
