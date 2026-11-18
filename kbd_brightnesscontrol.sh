@@ -22,12 +22,17 @@ EOF
 }
 
 send_notification() {
+    local action_label="$1"
     brightness=$(brightnessctl --device="$DEVICE" -m | grep -o '[0-9]\+%' | head -c-2)
-    brightinfo="Keyboard"
     angle="$((((brightness + 2) / 5) * 5))"
+    [ "$angle" -gt 100 ] && angle=100
     ico="$iconsDir/Wallbash-Icon/media/knob-$angle.svg"
-    bar=$(seq -s "." $((brightness / 15)) | sed 's/[0-9]//g')
-    [[ $isNotify == true ]] && notify-send -a "HyDE Notify" -r 6 -t 1500 -i "$ico" "Keyboard Brightness" "${brightness}%"
+    if [[ "$brightness" -eq 0 ]]; then
+        state_text="Off (0%)"
+    else
+        state_text="${brightness}% (${action_label})"
+    fi
+    [[ $isNotify == true ]] && notify-send -a "HyDE Notify" -r 6 -t 1500 -h int:value:"$brightness" -i "$ico" "Keyboard Brightness" "$state_text"
 }
 
 get_brightness() {
@@ -43,7 +48,7 @@ i | -i)
         step=5
     fi
     brightnessctl --device="$DEVICE" set +"$step"%
-    send_notification
+    send_notification "+${step}%"
     ;;
 d | -d)
     if [[ $(get_brightness) -le 10 ]]; then
@@ -54,7 +59,7 @@ d | -d)
     else
         brightnessctl --device="$DEVICE" set "$step"%-
     fi
-    send_notification
+    send_notification "-${step}%"
     ;;
 *) print_error ;;
 esac
