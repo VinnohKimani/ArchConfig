@@ -56,15 +56,15 @@ icon_theme = "${gtkIcon},${allIcons}"
 
 [Type-1]
 appname = "HyDE Alert"
-format = "<span font='14' weight='bold'>%s</span>\n%b"
+format = "<span font='11' weight='bold'>%s</span>\n%b"
 
 [Type-2]
 appname = "HyDE Notify"
-format = "<span font='14' weight='bold'>%s</span>\n%b"
+format = "<span font='11' weight='bold'>%s</span>\n%b"
 
 [Type-3]
 appname = "HyDE Power"
-format = "<span font='14' weight='bold'>%s</span>\n%b"
+format = "<span font='11' weight='bold'>%s</span>\n%b"
 
 
 

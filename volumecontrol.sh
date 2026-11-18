@@ -41,12 +41,12 @@ EOF
 }
 notify_vol() {
     local vol=$1
+    local delta_label=$2
     angle=$((((vol + 2) / 5) * 5))
     iconStyle="knob"
     [ "$angle" -gt 100 ] && angle=100
     ico="$icodir/$iconStyle-$angle.svg"
-    bar=$(seq -s "." $((vol / 15)) | sed 's/[0-9]//g')
-    [[ $isNotify == true ]] && notify-send -a "HyDE Notify" -r 8 -t 1500 -i "$ico" "Volume" "${vol}%  ·  $nsink"
+    [[ $isNotify == true ]] && notify-send -a "HyDE Notify" -r 8 -t 1500 -h int:value:"$vol" -i "$ico" "Volume (${delta_label})" "${vol}%  ·  $nsink"
 }
 notify_mute() {
     [ "$srce" == "@DEFAULT_AUDIO_SOURCE@" ] && srce="--default-source" || srce=""
@@ -100,7 +100,7 @@ change_volume() {
             vol=$(playerctl --player="$srce" volume | awk '{ printf "%.0f\n", $0 * 100 }')
             ;;
     esac
-    notify_vol "$vol"
+    notify_vol "$vol" "${delta}${step}%"
 }
 toggle_mute() {
     local device=$1
