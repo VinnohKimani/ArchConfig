@@ -159,3 +159,53 @@
   - Formatted external 32GB USB drive (`/dev/disk4`) as GPT `FAT32` with volume label `ARCH_202607` and extracted `archlinux-2026.07.01-x86_64.iso` (`EFI/BOOT`, `loader`, `arch`) with `archisobasedir=arch archisosearchabel=ARCH_202607` for native MacBook UEFI boot.
 - **Unified 220GB Root Merge Procedure Documented (`Option B`)**:
   - Documented the exact Live USB commands (`e2fsck -f /dev/sda3`, `echo '-,+' | sfdisk --move-data /dev/sda -N 3`, `parted /dev/sda resizepart 3 100%`, `resize2fs /dev/sda3`) in `SYSTEM_CONFIGS.md` and `README.md` to shift `/dev/sda3` left across the `119.6 GB` gap and expand it into a single `220.0 GB` `ext4` root partition while preserving `UUID` and `PARTUUID`.
+
+## Phase 17: Hyprland 0.57 Lua Migration, Keybindings, Display & Touchpad Polish
+- **Hyprland 0.57 Lua Port**:
+  - Migrated configuration to `~/.config/hypr/hyprland.lua` and tracked in `ArchConfig/hyprland.lua`.
+  - Restored core bindings: `Super + Q` (close window), `Super + W` (toggle float), `Super + Alt + W` (float 80% & center), `Super + P` (`display-switch.sh`), `Super + Alt + R` (OBS recording), `Super + N` / `Super + Shift + N` (Dunst dismiss/history).
+  - Configured physical media & brightness keys without requiring `Fn`: `F1`/`F2` (`brightnesscontrol.sh`), `F5`/`F6` (`kbd_brightnesscontrol.sh`), `F10`–`F12` (`volumecontrol.sh`), `F3`/`F4` (Mission Control & Launchpad).
+  - Added interactive OSD notifications with live progress bars and +/- delta indicators for screen brightness, keyboard backlight, and volume.
+- **Retina Scaling & Touchpad Anti-Tab-Drag Fix**:
+  - Set `eDP-1` scale to `1.6` (`1600x1000` integer logical grid) down from oversized `2.0`.
+  - Disabled `tap_and_drag` and `drag_lock` in `bcm5974` touchpad config to eliminate accidental tab tearing in browsers.
+  - Reduced global UI scale: smaller fonts (9pt/8pt), 20px cursor, 1px borders, and 3px/6px gaps.
+
+## Phase 18: Cirrus CS4208 Bass Woofers, PipeWire DSP, Tiered Swap & macOS Fluidity
+- **Hardware Bass Woofer Activation (CS4208)**:
+  - Diagnosed sound card: kernel driver muted Node 0x04 / Pin 0x13 (internal woofers) leaving only tweeters active on Pin 0x12.
+  - Created `enable-cs4208-woofers.py` and persistent systemd service `macbook-cs4208-woofers.service` with HDA firmware patch `cs4208-mbp121.fw` to power on (D0), unmute (0dB), and stream to woofer DAC 0x04.
+  - Deployed native PipeWire 9-stage speaker DSP `99-macbook-pro-2015-dsp.conf` with a -4.0dB anti-clipping preamp, 50Hz sub-cut, and 85Hz/160Hz bass boost.
+- **Tiered Swap & 8GB RAM Protection**:
+  - Configured Tier-1 ZRAM (`lz4`, `ram / 2` = 3.8 GiB, priority 100) in `/etc/systemd/zram-generator.conf`.
+  - Created and mounted Tier-2 8 GiB SSD `/swapfile` (priority 10) in `/etc/fstab`, giving 11.8 GiB total swap.
+  - Applied `/etc/sysctl.d/99-vm.conf` (`swappiness = 60`, `page-cluster = 0`, `watermark_boost_factor = 0`, `watermark_scale_factor = 125`, `vfs_cache_pressure = 50`) and enabled `systemd-oomd.service`.
+- **macOS Animation Profile & Tool Selector Positioning**:
+  - Applied native macOS animation profile (`workspaces` with `macSmooth` bezier and `slidefade 20%`; `windowsIn` / `windowsOut` with `macOpen` / `macBounce` spring popin).
+  - Fixed rofi menu positioning in `pyutils/compositor.py` to prevent Waybar layout/theme menus from sticking flush against the screen bezel.
+  - Disabled Satty screenshot annotation window and large image preview in `screenshot.sh` for instant snip-to-clipboard.
+  - Disabled `fastfetch` from executing on terminal startup in `~/.config/zsh/user.zsh`.
+
+## Phase 19: Full Documentation Overhaul & Hardware Stabilization Suite Deployment
+- **Documentation Audit & Synchronization**:
+  - Reconciled `SYSTEM_CONFIGS.md` and `README.md` against the live system state, bringing the file index to 26 tracked files.
+  - Updated explicit package index from `pacman -Qe`, including modern tools (`opencode`, `obsidian`, `telegram-desktop`, `discord`, `libreoffice-fresh`, `uwsm`, `awww`) and updated the one-liner restore command.
+  - Cleaned up obsolete Hyprland 0.56 `.conf` instructions, pacman `IgnorePkg` pins, and Satty preview references.
+- **Hardware Stabilization Suite Deployed & Activated**:
+  - **SPI ACPI Keyboard/Trackpad Wakeup (`macbook-wakeup.service`)**: Deployed systemd unit enabling `SPIT` in `/proc/acpi/wakeup` on boot. Tapping keys or clicking the trackpad now immediately wakes the MacBook from S3 sleep without needing the power button.
+  - **Bluetooth Resume Latency Fix (`/etc/modprobe.d/btusb.conf`)**: Set `options btusb enable_autosuspend=n`, eliminating the 15-second black-screen hang and USB error -110 during sleep/wake.
+  - **Broadcom Wi-Fi Stability (`/etc/modprobe.d/brcmfmac.conf`)**: Set `options brcmfmac feature_disable=0x82000`, preventing 5GHz packet drops and 90-second timeout loops.
+  - **NetworkManager Scan MAC Randomization Suppression (`/etc/NetworkManager/conf.d/mac-rand.conf`)**: Set `wifi.scan-rand-mac-address=no`, preventing driver firmware crashes on Broadcom BCM43602 during background network scans.
+  - **Power Button Protection (`/etc/systemd/logind.conf.d/ignore-power-key.conf`)**: Set `HandlePowerKey=ignore` and `HandlePowerKeyLongPress=ignore`, guarding against accidental power-offs from brush hits on the key adjacent to Delete while preserving the 7-second Apple SMC hardware forced cutoff.
+  - **Automated Installer**: Created tracked [apply-hardware-tweaks.sh](apply-hardware-tweaks.sh) to reproducibly install, configure, and verify all 5 hardware optimizations.
+
+## Phase 20: Memory Optimization & Anti-Stutter Tuning (7.7GB ZRAM & Swappiness 150)
+- **ZRAM Expansion to 100% RAM**:
+  - Expanded ZRAM pool in `/etc/systemd/zram-generator.conf` from `ram / 2` (3.8 GiB) to `ram` (7.7 GiB disksize) using `lz4` compression at priority 100.
+  - Total virtual swap capacity expanded to 15.7 GiB (7.7 GiB ZRAM + 8.0 GiB SSD `/swapfile`).
+- **Aggressive In-RAM Swap Reclaim (`swappiness = 150`)**:
+  - Raised `vm.swappiness` from 60 to 150 in `/etc/sysctl.d/99-vm.conf`. Prioritizes compressing idle anonymous memory in RAM at >3,000 MB/s rather than dropping executable code pages.
+  - Eliminates the 27+ seconds of I/O wait stalls and fan-spinning `kswapd0` direct reclaim loops under heavy load.
+- **Dirty Page Flush & Cache Reclamation**:
+  - Tuned `vm.dirty_ratio = 10` and `vm.dirty_background_ratio = 5` to stop 1.5GB dirty page accumulation stalls that caused 2-4 second desktop freezes during builds or file writes.
+  - Set `vm.vfs_cache_pressure = 100` for balanced metadata reclaim.

@@ -9,8 +9,9 @@ To make future installations seamless, here is a categorized list of the explici
 
 ### 💻 IDEs & Development Tools
 - `antigravity-ide` (Primary IDE)
-- `visual-studio-code-bin` (Fallback IDE)
-- `neovim` / `vim` (Terminal editors)
+- `visual-studio-code-bin` (Secondary IDE)
+- `opencode` (AI Coding CLI / Agent tool)
+- `neovim` / `vim` / `nano` (Terminal editors)
 - `docker` / `docker-compose` (Containerization)
 - `git` / `github-cli` (Version Control)
 - `ngrok` (Tunneling)
@@ -19,32 +20,45 @@ To make future installations seamless, here is a categorized list of the explici
 - **JavaScript/TypeScript:** `nodejs`, `npm`, `bun`
 - **Python:** `pyenv`, `python-pipenv`, `python-pipx`, `uv`
 - **Rust/C++:** `rust`, `base-devel`, `cmake`, `ninja`
+- **Lua:** `luarocks`
 
-### 🌐 Web Browsers
-- `brave-bin`
-- `firefox`
+### 🌐 Web Browsers & Communications
+- `brave-bin` (Primary browser)
+- `firefox` (Secondary browser)
+- `telegram-desktop` (Messaging)
+- `discord` (Voice & community chat)
 
-### 🎨 Desktop Environment (Hyprland / Hyde)
-- **Core:** `hyprland`, `hyprlock`, `hypridle`, `hyprsunset`, `hyprpicker`, `hyprpolkitagent`
-- **UI Components:** `waybar`, `rofi`, `wlogout`, `dunst`, `kitty` (Terminal)
-- **Display Manager:** `sddm`
+### 📝 Productivity, Notes & Media
+- `obsidian` (Markdown notes & knowledge base)
+- `libreoffice-fresh` (Office suite)
+- `freedownloadmanager` (Download manager)
 
-### 📁 File Management (Dolphin)
-- **Core Integrations:** `konsole`, `ark`, `filelight`, `kdeconnect`
+### 🎨 Desktop Environment (Hyprland 0.57 / HyDE)
+- **Core Compositor:** `hyprland` (0.57.2+ with Lua API), `hyprlock`, `hypridle`, `hyprsunset`, `hyprpicker`, `hyprpolkitagent`, `hyprquery-git`
+- **UI Components:** `waybar`, `rofi`, `wofi`, `wlogout`, `dunst`, `kitty` (Terminal)
+- **Session & Wallpaper:** `sddm`, `uwsm`, `awww`
+
+### 🔊 Audio & Multimedia Subsystem
+- **Sound Architecture:** `pipewire`, `pipewire-alsa`, `pipewire-jack`, `pipewire-pulse`, `wireplumber`, `gst-plugin-pipewire`
+- **Audio Control:** `pamixer`, `pavucontrol`, `playerctl`
+
+### 📁 File Management (Dolphin & Plasma Tools)
+- **Core Integrations:** `dolphin`, `dolphin-plugins`, `konsole`, `ark`, `filelight`, `kdeconnect`, `udiskie`
 - **Thumbnails & Previews:** `ffmpegthumbs`, `kdegraphics-thumbnailers`, `kimageformats`
-- **Version Control:** `dolphin-plugins`
 
 ### 🛠️ CLI Utilities & System Tools
-- **Shell:** `zsh`, `starship` (Prompt)
-- **System Monitors:** `btop`, `htop`, `fastfetch`
-- **File & Search:** `fzf`, `bat`, `tree`, `jq`, `unzip`, `wget`
-- **Performance:** `zram-generator` (RAM compression/swap)
+- **Shell & Prompt:** `zsh`, `starship` (Prompt)
+- **System Monitors:** `htop`, `fastfetch`
+- **File, Search & Utilities:** `fzf`, `bat`, `tree`, `jq`, `unzip`, `wget`, `parallel`, `smartmontools`
+- **Backlight & Input:** `brightnessctl`, `cliphist`, `wl-clip-persist`
+- **Screen Capture & Display:** `grim`, `slurp`, `satty`, `imagemagick`, `nwg-displays`, `nwg-look`
+- **Memory & Swap:** `zram-generator` (RAM compression)
 
 ### 🚀 One-Liner Reinstall Command
-For your next Arch installation, after installing `yay`, you can run this command to restore your entire development environment and application suite at once:
+For your next Arch installation, after installing `yay`, run this command to restore your complete development environment and application suite at once:
 
 ```bash
-yay -S antigravity-ide visual-studio-code-bin neovim docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja brave-bin firefox hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent waybar rofi wlogout dunst kitty sddm zsh starship btop fastfetch fzf bat tree jq zram-generator konsole ark filelight kdeconnect ffmpegthumbs kdegraphics-thumbnailers kimageformats dolphin-plugins
+yay -S antigravity-ide visual-studio-code-bin opencode neovim vim nano docker docker-compose git github-cli ngrok nodejs npm bun pyenv python-pipenv python-pipx uv rust base-devel cmake ninja luarocks brave-bin firefox telegram-desktop discord obsidian libreoffice-fresh freedownloadmanager hyprland hyprlock hypridle hyprsunset hyprpicker hyprpolkitagent hyprquery-git waybar rofi wofi wlogout dunst kitty sddm uwsm awww pipewire pipewire-alsa pipewire-jack pipewire-pulse wireplumber gst-plugin-pipewire pamixer pavucontrol playerctl brightnessctl cliphist wl-clip-persist grim slurp satty imagemagick nwg-displays nwg-look dolphin dolphin-plugins konsole ark filelight kdeconnect ffmpegthumbs kdegraphics-thumbnailers kimageformats udiskie zsh starship htop fastfetch fzf bat tree jq unzip wget parallel smartmontools zram-generator
 ```
 
 ---
@@ -350,32 +364,63 @@ Configured a clean systemd drop-in to completely ignore both short taps and long
 1. **Unresponsive Keys:** The keyboard backlight keys (`F5` and `F6`) on the MacBook Pro 2015 did not adjust the keyboard illumination. 
 
 ### Root Causes
-- **Missing Keybindings:** While the `applesmc` driver correctly exposes the keyboard backlight to the kernel via `/sys/class/leds/smc::kbd_backlight/`, there were no specific `bind` mappings inside the Hyprland configuration to capture `XF86KbdBrightnessUp` and `XF86KbdBrightnessDown` and dispatch a brightness change command.
+- **Missing Keybindings & HUD Feedback:** While the `applesmc` driver correctly exposes the keyboard backlight to the kernel via `/sys/class/leds/smc::kbd_backlight/`, there was neither automatic HUD visual feedback nor bindings mapped to both direct function keys (`F5`/`F6`) and media symbols (`XF86KbdBrightnessDown`/`XF86KbdBrightnessUp`).
 
 ### Resolutions
-1. **Added Keybindings:** Verified that `brightnessctl` could control `smc::kbd_backlight` without `sudo` privileges. Added repeating keybindings (`bindel`) to `~/.config/hypr/userprefs.conf` for the keyboard backlight keys:
-   ```conf
-   # Keyboard Backlight
-   bindel = , XF86KbdBrightnessUp, exec, brightnessctl --device='smc::kbd_backlight' set +10%
-   bindel = , XF86KbdBrightnessDown, exec, brightnessctl --device='smc::kbd_backlight' set 10%-
+1. **Added Keybindings with Interactive OSD:** Mapped in `~/.config/hypr/hyprland.lua` to call `~/.local/bin/kbd_brightnesscontrol.sh`, which adjusts brightness in 10% steps and displays an interactive Dunst progress bar:
+   ```lua
+   -- Keyboard Backlight (F5 / F6, Fn+F5 / Fn+F6, and XF86 keys)
+   hl.bindl(", XF86KbdBrightnessDown", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -d 10"), { description = "Keyboard Brightness Down" })
+   hl.bindl(", XF86KbdBrightnessUp", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -i 10"), { description = "Keyboard Brightness Up" })
+   hl.bindl(", F5", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -d 10"), { description = "Keyboard Brightness Down (Direct F5)" })
+   hl.bindl(", F6", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -i 10"), { description = "Keyboard Brightness Up (Direct F6)" })
+   hl.bindl("SUPER, F5", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -d 10"), { description = "Keyboard Brightness Down (Super Fallback)" })
+   hl.bindl("SUPER, F6", hl.dsp.exec_cmd("~/.local/bin/kbd_brightnesscontrol.sh -i 10"), { description = "Keyboard Brightness Up (Super Fallback)" })
    ```
 2. **Keyboard Backlight Sleep Timeout:** Hooked into the DPMS listener in `~/.config/hypr/hypridle.conf` to automatically save and turn off the keyboard backlight when the screen goes to sleep (300 seconds), and seamlessly restore the original brightness upon wake.
 
 ---
 
-## Trackpad Fixes (Tap-and-Drag)
+## Trackpad Fixes (Tap-and-Drag & Tab Tearing Elimination)
 
 ### Symptoms
-Accidental text highlighting and dragging of browser tabs when gently tapping the trackpad on the MacBook Pro.
+1. **Tab Tearing & Accidental Dragging:** Gently tapping the trackpad or navigating browser tabs caused accidental window dragging, tearing tabs into new floating windows, and unintentional text selection.
+2. **Clumsy Pointer Momentum:** Pointer movement felt either too sluggish or unwieldy when accelerating across Retina display boundaries.
 
 ### Root Cause
-Hyprland's `tap-and-drag` feature is overly sensitive on MacBook trackpads, interpreting a slight finger roll during a tap as a click-and-hold drag event.
+Hyprland's `tap_and_drag` and `drag_lock` settings interpret slight finger rolling during a tap as a click-and-hold drag event. On the MacBook Broadcom BCM5974 trackpad, physical taps registered drag locks that detached tabs and moved windows unintentionally.
 
 ### Resolution
-Disabled `tap-and-drag` in the Hyde dotfiles configuration.
-- **File:** `~/.config/hypr/userprefs.conf`
-- **Change:** Set `tap-and-drag = false` in the `input { touchpad { ... } }` block.
-- **Command:** `sed -i 's/tap-and-drag = true/tap-and-drag = false/' ~/.config/hypr/userprefs.conf`
+Disabled `tap_and_drag` and `drag_lock` globally and on the specific `bcm5974` device in `~/.config/hypr/hyprland.lua`:
+```lua
+hl.config({
+  input = {
+    natural_scroll = true,
+    sensitivity = 0.2,
+    accel_profile = "adaptive",
+    touchpad = {
+      natural_scroll = true,
+      tap_to_click = true,
+      tap_and_drag = false,
+      drag_lock = false,
+      clickfinger_behavior = true,
+      scroll_factor = 1.0,
+      disable_while_typing = true,
+      middle_button_emulation = true,
+    },
+  },
+  device = {
+    {
+      name = "bcm5974",
+      tap_to_click = true,
+      tap_and_drag = false,
+      drag_lock = false,
+      natural_scroll = true,
+      scroll_factor = 1.0,
+    },
+  },
+})
+```
 
 ---
 
@@ -385,88 +430,55 @@ Disabled `tap-and-drag` in the Hyde dotfiles configuration.
 No default keybinding existed in HyDE to instantly start or stop screen recording using OBS Studio.
 
 ### Resolution
-Added a non-conflicting custom keybinding to the user preferences.
-- **File:** `~/.config/hypr/userprefs.conf`
-- **Keybinding Added:** `Super + Alt + R`
-```conf
-# Screen Recording
-bind = $mainMod ALT, R, exec, obs --startrecording
+Configured custom keybinding in `~/.config/hypr/hyprland.lua`:
+- **Keybinding:** `Super + Alt + R`
+```lua
+hl.bind("SUPER + ALT, R", hl.dsp.exec_cmd("obs --startrecording"), {
+  description = "[Utilities] Start OBS screen recording",
+})
 ```
-
 ---
 
 
-# 🎨 Desktop Environment & UI (Hyprland / HyDE)
+# 🎨 Desktop Environment & UI (Hyprland 0.57+ / HyDE Lua)
 
-## Hyprland Config Errors
+## Hyprland 0.57+ Native Lua Configuration
 
-### Symptoms
-A red banner displaying `gestures:workspace_swipe does not exist` appeared on startup due to deprecated configuration syntax in newer Hyprland releases.
+### Overview
+Hyprland `0.57+` completely deprecated and removed support for legacy hyprlang (`.conf`) user configurations in favor of a native, programmable Lua configuration API. All compositor settings, input devices, monitors, window rules, and keybindings are now managed directly via `~/.config/hypr/hyprland.lua` (and version-controlled in `/home/vinnoh/Development/ArchConfig/hyprland.lua`).
 
-### Root Cause
-- **Deprecated Syntax:** Hyprland `0.41.0+` moved the `workspace_swipe` configuration. The old `gestures:workspace_swipe` variables were triggering parsing errors.
+### Active Production Architecture
+The system runs Hyprland `0.57.2-1` natively with LuaRocks and the HyDE Lua framework (`~/.local/share/hypr/hyde.lua`). All previous `.conf` pin restrictions (`IgnorePkg`) in `/etc/pacman.conf` have been safely lifted, allowing system packages to upgrade smoothly.
 
-### Resolution
-- **Resolution:** Remove the deprecated variables from `~/.config/hypr/userprefs.conf`. (These were cleared out, and `hyprctl reload` was issued to flush the error banner).
-
----
-
-## Hyprland 0.56 `.conf` Format Deprecation
-
-### Symptoms
-A yellow banner at the top of the screen on startup and after every `hyprctl reload`:
-
-> ⚠ You are using the .conf config format, support for which will be removed in Hyprland 0.57.
-
-### Root Cause
-Hyprland 0.55 added a Lua configuration API and 0.56 warns whenever the running config is the legacy hyprlang (`.conf`) format. HyDE migrated its dotfiles to Lua (`~/.local/share/hypr/hyde.lua`); a HyDE install made before that release still deploys and reads `~/.config/hypr/hyprland.conf` and the files it sources. The warning is not an error and nothing is broken yet, but 0.57 stops parsing `.conf` entirely.
-
-### Resolution (migrate)
-1. Deploy the Lua dotfiles (this is what actually switches the format — `git pull` alone changes nothing on disk):
-   ```bash
-   cd ~/HyDE/Scripts && git pull && ./install.sh -r
-   ```
-2. Make sure the Lua runtime is present: `sudo pacman -S lua luarocks`.
-3. Port personal settings from the old `~/.config/hypr/userprefs.conf` into `~/.config/hypr/hyprland.lua` — nothing under `.conf` is read any more:
+### Key Configuration Modules in `hyprland.lua`:
+1. **Retina HiDPI Display Scaling:**
    ```lua
    hl.config({
-       input = {
-           sensitivity = 0.5,
-           touchpad = {
-               natural_scroll = true,
-               tap-to-click = true,
-               clickfinger_behavior = true,
-               scroll_factor = 1.0,
-               tap-and-drag = false,
-           },
-       },
-   })
-
-   hl.bind("SUPER ALT + R", hl.dsp.exec_cmd("obs --startrecording"), {
-       description = "[Utilities] screen recording",
+     monitor = {
+       "eDP-1, 2560x1600@60, 0x0, 1.6",
+       ", preferred, auto, 1", -- Integer scale 1.0 for projectors & external monitors
+     },
    })
    ```
-   This covers this machine's customisations: pointer/touchpad block, `Super+Alt+R` OBS recording bind, safe-suspend on the lid switch, and the keyboard-backlight binds (`brightnessctl --device='smc::kbd_backlight'`).
-4. Start Hyprland against `hyde.lua`, not the old file — `Hyprland -c ${XDG_DATA_HOME:-$HOME/.local/share}/hypr/hyde.lua`, or through `start-hyprland`.
-5. If the session comes up without colours, run `hyde-shell reload`.
-6. Keep the orphaned `.conf` files until the port is verified, then delete them; they are the only copy of the old config.
-
-### Resolution (stay on hyprlang for now)
-Pin the compositor and its tightly coupled internal libraries so 0.57 cannot land before the full HyDE Lua migration is complete. Holding only `hyprland` causes `pacman -Syu` to abort because shared libraries (`libaquamarine.so`, `libhyprgraphics.so`) advance ahead of 0.56. In `/etc/pacman.conf`, `[options]` section:
-```ini
-IgnorePkg = aquamarine hyprcursor hyprgraphics hypridle hyprland hyprland-guiutils hyprland-qt-support hyprlang hyprlock hyprpicker hyprpolkitagent hyprsunset hyprtoolkit hyprutils hyprwire xdg-desktop-portal-hyprland
-```
-This ensures `sudo pacman -Syu` resolves all dependencies cleanly with zero errors while keeping the desktop environment completely stable.
-
-To automatically dismiss the deprecation warning banner on startup while keeping `.conf` format, add to `~/.config/hypr/userprefs.conf`:
-```conf
-exec-once = sleep 2 && hyprctl dismissnotify
-```
-This leaves the `.conf` configuration active while cleanly suppressing the banner from the desktop on login using Hyprland's native notification dismissal API.
-
-### Notes
-- `hl.config({ autogenerated = true })` is a *different* banner (the "default config" warning); remove that line to silence it, not this one.
-- Verify a broken reload with `hyprctl configerrors` — it stays empty for most Lua migration mistakes, so check bindings and monitors by hand.
+2. **MacBook Broadcom BCM5974 Touchpad Tuning:**
+   - `tap_to_click = true`
+   - `tap_and_drag = false` and `drag_lock = false` (prevents tab-tearing and clumsy window movement)
+   - `natural_scroll = true` with `scroll_factor = 1.0`
+   - `sensitivity = 0.2` and `accel_profile = "adaptive"` for natural momentum
+3. **Smooth macOS Animations (`macSmooth`, `macOpen`, `macBounce`):**
+   - Workspaces transition smoothly with `macSmooth` bezier (`0.25, 0.1, 0.25, 1.0`) and `slidefade 20%` speed `6.0`.
+   - Windows open with a subtle physical spring (`spring:macOpen`) and close with `spring:macBounce`.
+4. **macOS Functional Keybindings:**
+   - `Super + Q` $\rightarrow$ Close active window
+   - `Super + W` $\rightarrow$ Toggle floating window
+   - `Super + P` $\rightarrow$ Multi-monitor display switcher (`display-switch.sh`)
+   - `F1` / `F2` (and Fn+F1/Fn+F2) $\rightarrow$ Screen brightness with Dunst OSD HUD
+   - `F5` / `F6` (and Fn+F5/Fn+F6) $\rightarrow$ Keyboard backlight with Dunst OSD HUD
+   - `F10` / `F11` / `F12` $\rightarrow$ Volume mute / down / up with auto-unmute
+   - `F3` $\rightarrow$ Mission Control (Workspace overview)
+   - `F4` $\rightarrow$ Launchpad (Application launcher)
+   - `Super + Shift + S` $\rightarrow$ Instant snip to clipboard and `~/Pictures/Screenshots/` (Satty preview disabled)
+   - `Super + N` / `Super + Shift + N` $\rightarrow$ Notification dismiss all / history pop
 
 ---
 
@@ -805,31 +817,38 @@ Wayland's security model prevents direct screen scraping. Applications must requ
 
 # 🖱️ Trackpad & Wayland Hardware Acceleration
 
-## Touchpad Gesture & Scroll Calibration (Hyprland)
+## Touchpad Gesture & Scroll Calibration (Hyprland 0.57+ Lua)
 
 ### Configuration
-In `~/.config/hypr/userprefs.conf`:
-```ini
-input {
-    natural_scroll = true
-    sensitivity = 0.2
-    accel_profile = adaptive
-
-    touchpad {
-        natural_scroll = true
-        tap-to-click = true
-        scroll_factor = 1.0
-        clickfinger_behavior = true
-        tap-and-drag = false
-        disable_while_typing = true
-        middle_button_emulation = true
-    }
-}
-
-device {
-    name = bcm5974
-    natural_scroll = true
-}
+In `~/.config/hypr/hyprland.lua`:
+```lua
+hl.config({
+  input = {
+    natural_scroll = true,
+    sensitivity = 0.2,
+    accel_profile = "adaptive",
+    touchpad = {
+      natural_scroll = true,
+      tap_to_click = true,
+      tap_and_drag = false,
+      drag_lock = false,
+      clickfinger_behavior = true,
+      scroll_factor = 1.0,
+      disable_while_typing = true,
+      middle_button_emulation = true,
+    },
+  },
+  device = {
+    {
+      name = "bcm5974",
+      tap_to_click = true,
+      tap_and_drag = false,
+      drag_lock = false,
+      natural_scroll = true,
+      scroll_factor = 1.0,
+    },
+  },
+})
 ```
 - **`natural_scroll = true` & `device:bcm5974`**: Ensures natural scrolling is enforced globally and on the Broadcom trackpad device, providing 1:1 parity with macOS trackpad scroll direction.
 - **`accel_profile = adaptive`**: Overrides HyDE's rigid `flat` acceleration profile to restore standard, velocity-sensitive momentum and fine-grained precision on high-DPI Retina screens.
@@ -1126,4 +1145,68 @@ Restored the authentic Arch HyDE theme selector layout:
 - **Right-Aligned Theme Title**: Displays the theme name clearly on the right half.
 - **Selection Highlight**: When focused, the entire card highlights cleanly in `@select-bg` without chunky surrounding borders.
 - **Persistence**: Saved `ROFI_THEME_STYLE="2"` in `~/.local/lib/hyde/theme.select.sh` and `~/.local/state/hyde/staterc`.
+
+---
+
+# 🔊 Speaker Acoustic DSP & Hardware Bass Woofers (Cirrus Logic CS4208)
+
+## 1. Hardware Bass Woofer Activation
+- **Problem**: On the MacBookPro12,1 (`Cirrus Logic CS4208`), the Linux kernel audio driver defaulted to activating only the upper tweeters (`Pin 0x12` / `DAC 0x03`). The internal bass woofers (`Pin 0x13` / `DAC 0x04`) remained in power state `D3` and muted with no stream assignment, causing audio to sound thin, tinny, and hollow.
+- **Resolution**:
+  1. **HDA Firmware Pin Patch (`/usr/lib/firmware/cs4208-mbp121.fw`)**: Defines both speaker pairs (`0x12 = 0x90100010` tweeters, `0x13 = 0x90100012` woofers) loaded via `/etc/modprobe.d/alsa-macbook.conf`.
+  2. **Live Woofer Enabler Service (`macbook-cs4208-woofers.service`)**: Runs `/usr/local/bin/enable-cs4208-woofers.py` at boot and resume to wake `DAC 0x04` and `Pin 0x13` to `D0`, unmute both amplifiers to `0dB`, activate the GPIO amplifier enable lines (`0x0f`), and mirror the audio stream across both drivers.
+
+## 2. Native PipeWire 9-Stage Anti-Clipping DSP
+- **Configuration**: Installed `~/.config/pipewire/pipewire.conf.d/99-macbook-pro-2015-dsp.conf` using PipeWire's built-in `libpipewire-module-filter-chain`:
+  - **Preamp (`-4.0 dB`)**: Provides digital headroom across the spectrum, preventing clipping at 100% volume.
+  - **Sub-Bass Highpass (`55 Hz`, Q=0.707)**: Protects small speaker cones from low-frequency excursion distortion.
+  - **Bass Resonance (`85 Hz` +4.0dB & `160 Hz` +3.5dB)**: Restores MacBook body and low-end warmth.
+  - **Lower-Mid Body (`320 Hz` +2.0dB & `1000 Hz` +1.0dB)**: Brings vocals forward.
+  - **Boxiness & Harshness Cuts (`2800 Hz` -2.0dB & `4500 Hz` -2.5dB)**: Eliminates aluminum chassis metallic resonance.
+  - **Treble Air (`9500 Hz` +2.5dB)**: High-shelf sparkle and clarity.
+- **Routing**: Sits as the default system audio sink (`effect_input.macbook_dsp`), routing transparently into `alsa_output.pci-0000_00_1b.0.analog-stereo`.
+
+---
+
+# ⚡ Tiered Memory Architecture (7.7GB ZRAM + 8GB SSD Swapfile + Anti-Stutter VM Sysctl)
+
+## Dual-Tier Memory System (15.7 GiB Total Swap)
+On an 8GB RAM MacBook Pro running heavy IDEs, browsers, and containerized workflows, memory exhaustion and thermal throttling are prevented through an optimized two-tier hierarchy:
+1. **Tier-1 ZRAM (`/dev/zram0`, 7.7 GiB, Priority 100)**:
+   - Configured in `/etc/systemd/zram-generator.conf` with `compression-algorithm = lz4`, `zram-size = ram`, and `swap-priority = 100`.
+   - Virtual size matches physical RAM (7.7 GiB). Dynamically compresses inactive memory pages at >3,000 MB/s with negligible CPU overhead, holding ~7–8 GB of data inside ~2.5–3.0 GB of actual physical RAM.
+2. **Tier-2 SSD Swapfile (`/swapfile`, 8.0 GiB, Priority 10)**:
+   - Formatted at `/swapfile` with permissions `0600` and persisted in `/etc/fstab` with `pri=10`.
+   - Acts as a deep overflow safety net: active and semi-active pages remain in lightning-fast RAM/ZRAM, while cold background pages smoothly spill to SSD without risking an OOM crash.
+3. **Kernel Memory Watermarks, Dirty Pages & Cache Protection (`/etc/sysctl.d/99-vm.conf`)**:
+   - `vm.swappiness = 150`: Aggressively prioritizes compressing idle anonymous memory into ZRAM rather than dropping executable application code and shared library caches. This eliminates UI freezes and fan-spinning `kswapd0` direct-reclaim loops.
+   - `vm.page-cluster = 0`: Disables multi-page read-ahead for 4KB single-page SSD/ZRAM efficiency.
+   - `vm.dirty_ratio = 10` & `vm.dirty_background_ratio = 5`: Forces continuous background disk write flushing instead of allowing 1.5 GB dirty write bursts that lock the UI for 2–4 seconds during heavy compilation or downloads.
+   - `vm.vfs_cache_pressure = 100`: Balanced reclamation of directory and inode caches, preventing metadata from hoarding memory under high pressure.
+   - `vm.watermark_boost_factor = 0` & `vm.watermark_scale_factor = 125`: Wakes `kswapd0` early in the background to prevent direct-reclaim UI freezes when launching heavy apps.
+4. **Userspace OOM Protection (`systemd-oomd.service`)**:
+   - Enabled and running to kill runaway processes cleanly before hard system lockups.
+4. **Userspace OOM Protection (`systemd-oomd.service`)**:
+   - Enabled and running to kill runaway processes cleanly before hard system lockups.
+
+---
+
+# 🎬 macOS Fluidity & UI Polish
+
+## 1. Smooth macOS Animations (`hyprland.lua`)
+- **Workspace Transitions (Screen Switching)**: Configured `macSmooth` bezier (`0.25, 0.1, 0.25, 1.0`) with `slidefade 20%` speed `6.0` on `workspaces`, `workspacesIn`, and `workspacesOut` for fluid, horizontal Spaces-like transitions.
+- **App Launch & Quit**:
+  - `windowsIn`: `spring:macOpen` (mass 1, stiffness 110, dampening 16, `popin 90%`).
+  - `windowsOut`: `spring:macBounce` (mass 1, stiffness 80, dampening 10, `popin 90%`).
+  - `windowsMove`: `macSmooth` slide.
+
+## 2. Waybar / Tool Selection Positioning
+- Modified `get_rofi_pos()` in `~/.local/lib/hyde/pyutils/compositor.py` to enforce minimum margins (`x_off = min(x_off, -60)`, `y_off = max(y_off, 48)`). Waybar layout and theme selection menus now float cleanly with breathing room away from the right screen bezel.
+
+## 3. Instant Snip-to-Clipboard (No Preview Window)
+- Configured `[screenshot] annotation_enabled = false` in `~/.config/hyde/config.toml` and `SCREENSHOT_ANNOTATION_ENABLED=false` in `~/.local/lib/hyde/screenshot.sh`.
+- Screenshots (`Super + Shift + S`) save directly to `~/Pictures/Screenshots/`, copy to the clipboard, and display a non-intrusive notification without launching Satty/Swappy.
+
+## 4. Terminal Fastfetch Startup Disabled
+- Commented out the auto-executing fastfetch block in `~/.config/zsh/user.zsh` for instant, clean terminal launches.
 
