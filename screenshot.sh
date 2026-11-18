@@ -110,7 +110,12 @@ take_screenshot() {
     command=("$LIB_DIR/hyde/screenshot/grimblast" "${extra_args[@]}" "copysave" "${mode}" "${target_file}")
     print_log -g "Executing screenshot command: ${command[*]}"
     if eval "${command[*]}"; then
-        [[ ${SCREENSHOT_ANNOTATION_ENABLED} == false ]] && return 0
+        if [[ ${SCREENSHOT_ANNOTATION_ENABLED} == false ]]; then
+            if [[ ${SCREENSHOT_NOTIFY} != false ]]; then
+                send_notifs -a "HyDE Screenshot" "Screenshot Captured" "Saved to $(basename "$target_file") & copied to clipboard" -i "$target_file" -r 9
+            fi
+            return 0
+        fi
         if ! run_annotation_tool; then
             send_notifs -r 9 -a "HyDE Alert" "Screenshot Error" "Failed to open annotation tool"
             return 1
