@@ -1,0 +1,11 @@
+[Unit]
+Description=Enable Apple SPI keyboard/trackpad wakeup for MacBookPro12,1
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "if grep -q 'SPIT.*disabled' /proc/acpi/wakeup; then echo SPIT > /proc/acpi/wakeup; fi"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
