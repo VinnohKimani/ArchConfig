@@ -235,3 +235,15 @@ hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bi
     description = "[Hardware Controls|Power] guarded suspend on lid close",
     locked      = true,
 })
+
+-- J. Keybindings Cheat-Sheet & Helper (Super + K / Cmd + K)
+-- Matches intuitive Mac/VSCode command palette habit; complements Super + slash
+hl.bind(MOD .. " + K", hl.dsp.exec_cmd(hyde.sh.menu.binds()), {
+    description = "[Launcher|Rofi menus] keybindings hint cheat-sheet",
+})
+
+-- K. macOS Native Emoji Picker (Super + Ctrl + Space)
+-- Complements existing Super + comma (Cmd + ,)
+hl.bind(MOD .. " + CTRL + space", hl.dsp.exec_cmd(hyde.sh.menu.emoji()), {
+    description = "[Launcher|Rofi menus] emoji picker (macOS shortcut)",
+})
