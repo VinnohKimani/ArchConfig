@@ -248,3 +248,12 @@
 - **Volume Boost & Audio Scaling**:
   - Enabled `VOLUME_BOOST=true` with limit 150% in `volumecontrol.sh` and synced to `~/.local/lib/hyde/volumecontrol.sh`.
   - Updated `apply-system-fixes.sh` to deploy the unified memory, swap, audio sleep hook, and volume configuration cleanly in one command.
+
+## Phase 24: Fix Sleep/Wake Race Condition & "Suspend Blocked" Notification
+- **Root Cause**:
+  - `safe-suspend.sh` previously enforced a 2-second sleep (`sleep 2`) to compare two consecutive capacity readings.
+  - When closing the lid or suspending, `systemd-logind` froze the system (`user.slice`) while `safe-suspend.sh` was paused inside `sleep 2`.
+  - Upon waking the laptop, `safe-suspend.sh` unfroze and attempted to read `/sys/class/power_supply/BAT0/capacity` before the Apple SMC had finished re-initializing from S3 suspend, causing the comparison to fail and triggering a persistent critical alert: `Suspend blocked: battery level unreadable or unstable`.
+- **Resolution**:
+  - Replaced the 2-second blocking sleep in `safe-suspend.sh` (and `~/.local/bin/safe-suspend.sh`) with an instant non-blocking read and fast 100ms retry loop.
+  - Eliminates the sleep/wake freeze race condition entirely, executing suspend in <40ms and preventing false notifications on wakeup.

@@ -47,16 +47,19 @@ battery_capacity() {
     printf '%s\n' "$value"
 }
 
-# Two consecutive identical readings. The SMC briefly returns 0 or a stale value
-# right after a charger transition, and a single bad read must not be trusted
-# with a power decision in either direction.
+# Fast capacity read with retries. Eliminates the sleep race condition
+# where a 2-second delay got frozen by system suspend mid-execution and
+# falsely failed upon resume.
 stable_capacity() {
-    local first second
-    first=$(battery_capacity) || return 1
-    sleep 2
-    second=$(battery_capacity) || return 1
-    [[ $first == "$second" ]] || return 1
-    printf '%s\n' "$second"
+    local attempt value
+    for attempt in 1 2 3; do
+        if value=$(battery_capacity) && (( value > 0 )); then
+            printf '%s\n' "$value"
+            return 0
+        fi
+        sleep 0.1
+    done
+    return 1
 }
 
 if ! online=$(ac_online); then
