@@ -1,4 +1,4 @@
-# 🍎 Arch-Configs: MacBook Pro 2015 (Retina) System Suite
+#  Arch-Configs: MacBook Pro 2015 (Retina) System Suite
 
 A complete, production-grade configuration suite, hardware workarounds, and stabilization scripts for **Arch Linux** running on an **Apple MacBook Pro 13-inch (Early 2015 - MacBookPro12,1)** with **Hyprland** (HyDE framework).
 
@@ -22,7 +22,7 @@ A complete, production-grade configuration suite, hardware workarounds, and stab
 
 ---
 
-## 📂 Repository Architecture & File Index
+##  Repository Architecture & File Index
 
 ```text
 Arch-Configs/
@@ -76,7 +76,7 @@ Arch-Configs/
 
 ---
 
-## 🛠️ Key Subsystems & Hardware Workarounds
+##  Key Subsystems & Hardware Workarounds
 
 ### 1. Wi-Fi Connectivity & Eduroam Enterprise (Broadcom BCM43602)
 - **Problem:** The built-in Broadcom BCM43602 Wi-Fi chip repeatedly failed to associate with modern WPA2/WPA3 access points, causing 90-second timeout loops and `NO-CARRIER` states.
@@ -156,11 +156,12 @@ Arch-Configs/
   1. Enforced `SCREENSHOT_ANNOTATION_ENABLED=false` in [screenshot.sh](screenshot.sh) and `[screenshot] annotation_enabled = false` in `~/.config/hyde/config.toml`.
   2. Pressing **`Cmd + Shift + S`** (`Super + Shift + S`) immediately copies the selected area to the Wayland clipboard, auto-saves to `~/Pictures/Screenshots/`, and generates a clean Dunst notification displaying the captured screenshot as an image thumbnail icon.
 
-### 11. Cirrus CS4208 Dual-Speaker & Woofer Activation (Audio Hardware Fix)
-- **Problem:** Internal speakers sounded thin and tinny because the kernel audio driver only routed audio to the upper tweeters (`Pin 0x12` / `DAC 0x03`), leaving the bass woofers (`Pin 0x13` / `DAC 0x04`) asleep in power state `D3` and muted.
+### 11. Cirrus CS4208 Quad-Speaker & Woofer Activation (Audio Hardware Fix)
+- **Problem:** Internal speakers sounded thin and tinny because the kernel audio driver only routed audio to the upper tweeters (`Pin 0x12` / `DAC 0x03`), leaving the bass woofers (`Pin 0x13` / `DAC 0x04`) asleep in power state `D3` and muted. Furthermore, sleep/wake cycles reset CS4208 GPIO amplifier lines, muting woofers again.
 - **Resolution:**
-  1. Created [enable-cs4208-woofers.py](enable-cs4208-woofers.py) and persistent unit `macbook-cs4208-woofers.service` to wake DAC 0x04, unmute woofers to 0dB, enable GPIO speaker amplifiers, and mirror stereo audio.
-  2. Installed [99-macbook-pro-2015-dsp.conf](99-macbook-pro-2015-dsp.conf) PipeWire filter chain providing -4.0dB anti-clipping digital headroom, 55Hz sub-bass highpass, +4dB bass resonance, and chassis resonance notch cuts.
+  1. Created [enable-cs4208-woofers.py](enable-cs4208-woofers.py), systemd boot service `macbook-cs4208-woofers.service`, and systemd sleep hook [cs4208-woofers-sleep.sh](cs4208-woofers-sleep.sh) (`/usr/lib/systemd/system-sleep/cs4208-woofers.sh`) to permanently maintain GPIO lines 0..3 high and woofers active across reboots and sleep/wake cycles.
+  2. Installed [99-macbook-pro-2015-dsp.conf](99-macbook-pro-2015-dsp.conf) PipeWire filter chain providing sub-bass protection, enclosure resonance boost, and chassis resonance notch cuts.
+  3. Configured [volumecontrol.sh](volumecontrol.sh) with `VOLUME_BOOST=true` (up to 150%) to unleash full speaker dynamic range.
 
 ### 12. macOS Fluidity & UI Polish
 - **Smooth Workspace Transitions:** Configured `macSmooth` cubic bezier (`0.25, 0.1, 0.25, 1.0`) with `slidefade 20%` speed `6.0` on `workspaces`, `workspacesIn`, and `workspacesOut` for fluid, horizontal Spaces-like switching.
@@ -168,9 +169,15 @@ Arch-Configs/
 - **Rofi Bezel Margin:** Adjusted `get_rofi_pos()` in `~/.local/lib/hyde/pyutils/compositor.py` to prevent menus from clinging to the screen edge.
 - **Instant Terminal Startup:** Disabled auto-running fastfetch in `~/.config/zsh/user.zsh`.
 
+### 13. Dual-Tier Anti-Lag Memory & Swap Architecture
+- **Problem:** YouTube and video playback lagged severely even at moderate (~5GB) RAM usage due to extreme `vm.swappiness = 150` and `watermark_scale_factor = 125` triggering premature memory compression and CPU contention on the dual-core i5-5287U.
+- **Resolution:**
+  1. Capped ZRAM to 50% physical RAM (`zram-size = min(ram / 2, 4096)`) in [zram-generator.conf](zram-generator.conf) to prevent compressed pages from starving active uncompressed RAM.
+  2. Tuned [99-vm.conf](99-vm.conf) to `vm.swappiness = 60` and `vm.watermark_scale_factor = 20`, keeping browser video frames and JS heap uncompressed in RAM while retaining 8GB SSD swap as deep safety fallback.
+
 ---
 
-## 📖 In-Depth Documentation Index
+##  In-Depth Documentation Index
 
 For complete step-by-step guides, configs, and architectural explanations:
 * **[SYSTEM_CONFIGS.md](SYSTEM_CONFIGS.md)** — Exhaustive system guide covering package lists, battery fixes, sleep safety, terminal fonts, power button protections, display scaling, screenshot persistence, and storage maintenance.

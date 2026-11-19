@@ -4,12 +4,13 @@ MacBook Pro 13" (Early 2015 - MacBookPro12,1) Cirrus Logic CS4208 Quad-Speaker /
 
 By default on Linux, snd_hda_codec_cirrus only powers up Node 0x03 -> Pin 0x12 (the upper tweeters)
 while leaving Node 0x04 -> Pin 0x13 (the internal Bass Woofers, 0x90100112) powered down in D3 and muted.
-This script powers up Node 0x04 and Pin 0x13 to D0, enables the CS4208 GPIO speaker amplifier lines,
-unmutes DAC 0x04 to 0dB (0x7f), and syncs DAC 0x04's converter stream with DAC 0x03.
+This script powers up Node 0x04 and Pin 0x13 to D0, enables the CS4208 GPIO speaker amplifier lines (0..3),
+unmutes DAC 0x04 to 0dB (0x7f), and syncs DAC 0x04's converter stream and format with DAC 0x03.
 """
 import fcntl
 import os
 import struct
+import sys
 import time
 
 HDA_IOCTL_VERB_WRITE = 0xC0084811
@@ -33,6 +34,11 @@ def sync_woofers(fd: int) -> None:
     verb(fd, 0x01, 0x717, 0x0F)
     verb(fd, 0x01, 0x715, 0x0F)
 
+    # Sync stream format (sample rate, bit depth) from DAC 0x03 to Woofer DAC 0x04
+    fmt = verb(fd, 0x03, 0xA00, 0x00)
+    if fmt:
+        verb(fd, 0x04, 0x200, fmt)
+
     # Read active stream/channel ID from DAC 0x03 and mirror to Woofer DAC 0x04
     conv = verb(fd, 0x03, 0xF06, 0x00)
     verb(fd, 0x04, 0x706, conv if conv else 0x50)
@@ -48,22 +54,32 @@ def sync_woofers(fd: int) -> None:
 
 
 def main() -> None:
-    # Ensure kernel HDA parser knows 0x13 is the second internal speaker pair (0x90100012)
     sysfs_base = "/sys/class/sound/card1/hwC1D0"
     try:
-        with open(f"{sysfs_base}/user_pin_configs", "r") as f:
-            cur_pins = f.read()
-        if "0x13 0x90100012" not in cur_pins:
-            with open(f"{sysfs_base}/user_pin_configs", "w") as f:
-                f.write("0x12 0x90100010\n0x13 0x90100012\n")
+        if os.path.exists(f"{sysfs_base}/user_pin_configs"):
+            with open(f"{sysfs_base}/user_pin_configs", "r") as f:
+                cur_pins = f.read()
+            if "0x13 0x90100012" not in cur_pins:
+                with open(f"{sysfs_base}/user_pin_configs", "w") as f:
+                    f.write("0x12 0x90100010\n0x13 0x90100012\n")
     except Exception:
         pass
 
-    fd = os.open(DEV_PATH, os.O_RDWR)
-    try:
-        sync_woofers(fd)
-    finally:
-        os.close(fd)
+    for attempt in range(3):
+        try:
+            fd = os.open(DEV_PATH, os.O_RDWR)
+            try:
+                sync_woofers(fd)
+                print("CS4208 Bass Woofers and GPIO amplifiers successfully activated.")
+                return
+            finally:
+                os.close(fd)
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(0.2)
+            else:
+                print(f"Error enabling CS4208 woofers: {e}", file=sys.stderr)
+                sys.exit(1)
 
 
 if __name__ == "__main__":

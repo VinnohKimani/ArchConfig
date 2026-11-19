@@ -235,3 +235,16 @@
   - `Cmd + K`: Opens Keybindings Hint cheat-sheet.
   - `Cmd + Ctrl + Space` / `Cmd + ,`: Opens Emoji picker.
   - `Cmd + Shift + K`: Opens Calculator.
+
+## Phase 23: Anti-Lag Memory/Swap Architecture & CS4208 Woofer Sleep Resiliency
+- **ZRAM & Memory Swapping Optimization**:
+  - Capped ZRAM to 50% physical RAM (`zram-size = min(ram / 2, 4096)`) using `lz4` in `zram-generator.conf`, preventing compressed pages from starving uncompressed physical memory.
+  - Tuned `vm.swappiness = 60` and `vm.watermark_scale_factor = 20` in `99-vm.conf`, eliminating premature anonymous memory eviction and CPU compression stalls on the dual-core i5-5287U during YouTube and media playback at ~5GB usage.
+  - Retained the 8GB SSD `/swapfile` (priority 10) as an emergency overflow buffer.
+- **Cirrus Logic CS4208 Quad-Speaker & Woofer Sleep Resiliency**:
+  - Enhanced `enable-cs4208-woofers.py` with format syncing and retry handling to keep all 4 speakers (tweeters + woofers) active and unmuted.
+  - Added `cs4208-woofers-sleep.sh` systemd sleep hook (`/usr/lib/systemd/system-sleep/`) and updated `macbook-cs4208-woofers.service` to persist CS4208 GPIO lines 0..3 high across reboots and sleep/wake cycles.
+  - Synchronized `99-macbook-pro-2015-dsp.conf` to eliminate flat preamp loss.
+- **Volume Boost & Audio Scaling**:
+  - Enabled `VOLUME_BOOST=true` with limit 150% in `volumecontrol.sh` and synced to `~/.local/lib/hyde/volumecontrol.sh`.
+  - Updated `apply-system-fixes.sh` to deploy the unified memory, swap, audio sleep hook, and volume configuration cleanly in one command.

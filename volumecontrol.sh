@@ -7,7 +7,8 @@ isNotify=${VOLUME_NOTIFY:-true}
 if command -v swayosd-client > /dev/null 2>&1 && pgrep -x swayosd-server > /dev/null; then
     use_swayosd=true
 fi
-isVolumeBoost="${VOLUME_BOOST:-false}"
+isVolumeBoost="${VOLUME_BOOST:-true}"
+VOLUME_BOOST_LIMIT="${VOLUME_BOOST_LIMIT:-150}"
 print_usage() {
     cat << EOF
 Usage: $(basename "$0") -[device] <action> [step]

@@ -1173,24 +1173,22 @@ Restored the authentic Arch HyDE theme selector layout:
 
 ---
 
-# ⚡ Tiered Memory Architecture (7.7GB ZRAM + 8GB SSD Swapfile + Anti-Stutter VM Sysctl)
+# ⚡ Tiered Memory Architecture (3.85GB ZRAM + 8GB SSD Swapfile + Anti-Stutter VM Sysctl)
 
-## Dual-Tier Memory System (15.7 GiB Total Swap)
-On an 8GB RAM MacBook Pro running heavy IDEs, browsers, and containerized workflows, memory exhaustion and thermal throttling are prevented through an optimized two-tier hierarchy:
-1. **Tier-1 ZRAM (`/dev/zram0`, 7.7 GiB, Priority 100)**:
-   - Configured in `/etc/systemd/zram-generator.conf` with `compression-algorithm = lz4`, `zram-size = ram`, and `swap-priority = 100`.
-   - Virtual size matches physical RAM (7.7 GiB). Dynamically compresses inactive memory pages at >3,000 MB/s with negligible CPU overhead, holding ~7–8 GB of data inside ~2.5–3.0 GB of actual physical RAM.
+## Dual-Tier Memory System (11.85 GiB Total Swap)
+On an 8GB RAM MacBook Pro running heavy IDEs, browsers, and containerized workflows, memory exhaustion, thermal throttling, and video stutter are prevented through an optimized two-tier hierarchy:
+1. **Tier-1 ZRAM (`/dev/zram0`, ~3.85 GiB, Priority 100)**:
+   - Configured in `/etc/systemd/zram-generator.conf` with `compression-algorithm = lz4`, `zram-size = min(ram / 2, 4096)`, and `swap-priority = 100`.
+   - Capped to 50% of physical RAM to guarantee that compressed pages never crowd out uncompressed application memory. Dynamically compresses inactive memory pages at >3,000 MB/s with negligible CPU overhead.
 2. **Tier-2 SSD Swapfile (`/swapfile`, 8.0 GiB, Priority 10)**:
    - Formatted at `/swapfile` with permissions `0600` and persisted in `/etc/fstab` with `pri=10`.
    - Acts as a deep overflow safety net: active and semi-active pages remain in lightning-fast RAM/ZRAM, while cold background pages smoothly spill to SSD without risking an OOM crash.
 3. **Kernel Memory Watermarks, Dirty Pages & Cache Protection (`/etc/sysctl.d/99-vm.conf`)**:
-   - `vm.swappiness = 150`: Aggressively prioritizes compressing idle anonymous memory into ZRAM rather than dropping executable application code and shared library caches. This eliminates UI freezes and fan-spinning `kswapd0` direct-reclaim loops.
+   - `vm.swappiness = 60`: Balanced anonymous memory swapping that allows browsers and YouTube video players to hold active video buffers in physical RAM without premature eviction or CPU compression stutter.
    - `vm.page-cluster = 0`: Disables multi-page read-ahead for 4KB single-page SSD/ZRAM efficiency.
    - `vm.dirty_ratio = 10` & `vm.dirty_background_ratio = 5`: Forces continuous background disk write flushing instead of allowing 1.5 GB dirty write bursts that lock the UI for 2–4 seconds during heavy compilation or downloads.
    - `vm.vfs_cache_pressure = 100`: Balanced reclamation of directory and inode caches, preventing metadata from hoarding memory under high pressure.
-   - `vm.watermark_boost_factor = 0` & `vm.watermark_scale_factor = 125`: Wakes `kswapd0` early in the background to prevent direct-reclaim UI freezes when launching heavy apps.
-4. **Userspace OOM Protection (`systemd-oomd.service`)**:
-   - Enabled and running to kill runaway processes cleanly before hard system lockups.
+   - `vm.watermark_boost_factor = 0` & `vm.watermark_scale_factor = 20`: Wakes `kswapd0` cleanly in the background without premature thrashing during normal web playback.
 4. **Userspace OOM Protection (`systemd-oomd.service`)**:
    - Enabled and running to kill runaway processes cleanly before hard system lockups.
 

@@ -3,9 +3,8 @@ set -euo pipefail
 
 REPO_DIR="/home/vinnoh/Development/ArchConfig"
 
-echo "[1/5] Configuring ZRAM (lz4, ram, priority 100)..."
+echo "[1/5] Configuring ZRAM (lz4, ram / 2 (~3.85GB), priority 100)..."
 install -m 0644 "$REPO_DIR/zram-generator.conf" /etc/systemd/zram-generator.conf
-# Switch live zram0 to lz4 if possible, or reload zram service
 swapoff /dev/zram0 2>/dev/null || true
 systemctl daemon-reload
 systemctl restart systemd-zram-setup@zram0.service || swapon -p 100 /dev/zram0 || true
@@ -22,21 +21,25 @@ if ! grep -q '^/swapfile' /etc/fstab; then
     printf '\n# 8 GiB SSD Overflow Swapfile (Tier-2 behind ZRAM)\n/swapfile none swap defaults,pri=10 0 0\n' >> /etc/fstab
 fi
 
-echo "[3/5] Applying /etc/sysctl.d/99-vm.conf and enabling systemd-oomd..."
+echo "[3/5] Applying /etc/sysctl.d/99-vm.conf (swappiness=60, watermark_scale_factor=20)..."
 install -m 0644 "$REPO_DIR/99-vm.conf" /etc/sysctl.d/99-vm.conf
 sysctl --system >/dev/null
 systemctl enable --now systemd-oomd.service
 
-echo "[4/5] Installing CS4208 Dual-Speaker/Bass Woofer (0x12 + 0x13) HDA Firmware Patch..."
-mkdir -p /usr/lib/firmware /etc/modprobe.d
+echo "[4/5] Installing CS4208 Dual-Speaker/Bass Woofer HDA Firmware & Sleep Resiliency..."
+mkdir -p /usr/lib/firmware /etc/modprobe.d /usr/lib/systemd/system-sleep
 install -m 0644 "$REPO_DIR/cs4208-mbp121.fw" /usr/lib/firmware/cs4208-mbp121.fw
 install -m 0644 "$REPO_DIR/alsa-macbook.conf" /etc/modprobe.d/alsa-macbook.conf
 
-# Install and run the CS4208 Woofer Enabler script & systemd service
+# Install woofer enabler script
 install -m 0755 "$REPO_DIR/enable-cs4208-woofers.py" /usr/local/bin/enable-cs4208-woofers.py
-echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null || true
-/usr/local/bin/enable-cs4208-woofers.py
 
+# Install systemd suspend/resume sleep hook to persist woofers across sleep/wake cycles
+install -m 0755 "$REPO_DIR/cs4208-woofers-sleep.sh" /usr/lib/systemd/system-sleep/cs4208-woofers.sh
+
+echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null || true
+
+# Systemd boot service
 cat << 'EOF' > /etc/systemd/system/macbook-cs4208-woofers.service
 [Unit]
 Description=Enable Cirrus Logic CS4208 Bass Woofers (Node 0x04 / Pin 0x13) on MacBookPro12,1
@@ -45,12 +48,20 @@ After=sound.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/enable-cs4208-woofers.py
-RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target sleep.target
+WantedBy=multi-user.target
 EOF
+
 systemctl daemon-reload
 systemctl enable --now macbook-cs4208-woofers.service
 
-echo "[5/5] Done!"
+# Run live activation immediately
+/usr/local/bin/enable-cs4208-woofers.py || true
+
+echo "[5/5] Updating user volume control script..."
+if [[ -d "/home/vinnoh/.local/lib/hyde" ]]; then
+    install -m 0755 "$REPO_DIR/volumecontrol.sh" /home/vinnoh/.local/lib/hyde/volumecontrol.sh
+fi
+
+echo "=== System fixes successfully applied! ==="
